@@ -12,7 +12,16 @@ Both sources and every `transform/` module are implemented and verified against 
   deferred case — see below), tags fully resolved to concrete item lists.
 - `npm run generate:base -- 26.1` — 1,506 items, 157 entities, 40 effects, 43 enchantments.
 
-`merge/` and `diff/` (the curated-data join and the coverage-gap report) are still stubs.
+`merge/overlay.ts` and `diff/coverageReport.ts` are implemented too - both take a consumer's own
+curated data as a parameter rather than reading any specific file (see "Curated data" below), so
+they're covered by unit tests with small fixtures (`npm test`) rather than a real generate script.
+Sanity-checked against Craft Helper's actual sheet snapshot (not part of this repo, run locally,
+not committed): 274 items in minecraft-data 26.1 have no matching sheet entry, and the rename
+heuristic correctly separates 21 real Mojang renames ("Iron Block" -> "Block of Iron", etc.) from
+253 genuinely new items - consistent with the gap this project's investigation surfaced in the
+first place.
+
+`schema/public.ts` is still a stub.
 
 ## Why
 
@@ -36,21 +45,27 @@ hand-maintained; this project is about not hand-maintaining the raw game data un
 
 ```
 src/
+  models/
+    item.model.ts, entity.model.ts, effect.model.ts, enchantment.model.ts,
+    recipe.model.ts, ingredient.model.ts, curated-record.model.ts
+                        one interface per file, matching Data Converter's models/minecraft/*.model.ts
+                        naming convention - the transform/, merge/, and diff/ modules below all
+                        import their shapes from here rather than declaring their own
   sources/
     minecraft-data/   wraps PrismarineJS/minecraft-data — items, entities, effects, enchantments [done]
     mcmeta/            wraps misode/mcmeta's {version}-data tag — recipe files + tag definitions [done]
   transform/
-    items.ts           minecraft-data item -> ParsedItem [done]
-    entities.ts         minecraft-data entity -> ParsedEntity [done]
-    effects.ts           minecraft-data effect -> ParsedEffect, incl. its PascalCase id fix-up [done]
-    enchantments.ts       minecraft-data enchantment -> ParsedEnchantment [done]
+    items.ts           minecraft-data item -> Item [done]
+    entities.ts         minecraft-data entity -> Entity [done]
+    effects.ts           minecraft-data effect -> Effect, incl. its PascalCase id fix-up [done]
+    enchantments.ts       minecraft-data enchantment -> Enchantment [done]
     recipes.ts           parses every mcmeta recipe type except one deferred case [done]
     tags.ts               resolves #minecraft:x tags to concrete item ids, recursively [done]
   merge/
-    overlay.ts           joins curated data (synonyms, tips, breeding/taming, ...) onto the base layer
+    overlay.ts           joins a consumer's curated records onto base-layer records by name [done]
   diff/
-    coverageReport.ts     flags base-layer items/entities with no match in the curated data —
-                          catches renames and new items the curated layer hasn't picked up yet
+    coverageReport.ts     flags base-layer records with no curated match, with a rename-vs-new
+                          heuristic - see "Curated data" below [done]
   schema/
     public.ts             the stable versioned output shape actually published
 scripts/
@@ -99,12 +114,22 @@ minecraft-data's `effects.json` stores its own `name` field as PascalCase ("Mini
 effects. `transform/effects.ts` converts it rather than carrying the PascalCase form through, so
 every id this project produces is the real, namespaced Mojang id, consistently.
 
+### Curated data
+
+`merge/overlay.ts` and `diff/coverageReport.ts` don't read Craft Helper's sheet (or any specific
+file) directly - that data is private and Craft-Helper-specific, which has no place baked into a
+public, MIT-licensed repo. Both are generic functions typed against `CuratedRecord`
+(`models/curated-record.model.ts`), a minimal `{ name: string }` contract - a consumer supplies
+their own curated array (however they source it) plus a `nameOf` function for the base-layer side,
+and gets back either a join (`overlay`) or a gap report (`coverageReport`). This settles the
+"does the curated overlay ship from this repo" open question from earlier: the *mechanism* does,
+here, generically; the *data* (and whatever eventually reads the sheet into that shape) stays
+wherever Craft Helper's own pipeline lives.
+
 ## Open questions
 
 - Whether redistributing Mojang-derived data (especially icons/images) is fine under Mojang's
   usage guidelines — not yet checked.
-- Whether the curated overlay (`merge/`) ships from this repo or a separate one, since it's the
-  Craft-Helper-specific part and the rest above it is general-purpose.
 
 ## License
 

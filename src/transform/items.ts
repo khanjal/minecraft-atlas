@@ -1,10 +1,10 @@
-// Converts a minecraft-data item entry into this project's ParsedItem shape.
+// Converts a minecraft-data item entry into this project's Item shape.
 
 import { fetchItems, RawItem } from '../sources/minecraft-data';
 import { namespaced } from '../util/id';
-import { ParsedItem } from './types';
+import { Item } from '../models/item.model';
 
-export function parseItem(raw: RawItem): ParsedItem {
+export function parseItem(raw: RawItem): Item {
     return {
         id: namespaced(raw.name),
         displayName: raw.displayName,
@@ -15,7 +15,7 @@ export function parseItem(raw: RawItem): ParsedItem {
     };
 }
 
-export async function buildItems(version: string): Promise<ParsedItem[]> {
+export async function buildItems(version: string): Promise<Item[]> {
     const raw = await fetchItems(version);
     return raw.map(parseItem);
 }

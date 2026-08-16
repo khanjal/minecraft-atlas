@@ -1,10 +1,10 @@
-// Converts a minecraft-data enchantment entry into this project's ParsedEnchantment shape.
+// Converts a minecraft-data enchantment entry into this project's Enchantment shape.
 
 import { fetchEnchantments, RawEnchantment } from '../sources/minecraft-data';
 import { namespaced } from '../util/id';
-import { ParsedEnchantment } from './types';
+import { Enchantment } from '../models/enchantment.model';
 
-export function parseEnchantment(raw: RawEnchantment): ParsedEnchantment {
+export function parseEnchantment(raw: RawEnchantment): Enchantment {
     return {
         id: namespaced(raw.name),
         displayName: raw.displayName,
@@ -19,7 +19,7 @@ export function parseEnchantment(raw: RawEnchantment): ParsedEnchantment {
     };
 }
 
-export async function buildEnchantments(version: string): Promise<ParsedEnchantment[]> {
+export async function buildEnchantments(version: string): Promise<Enchantment[]> {
     const raw = await fetchEnchantments(version);
     return raw.map(parseEnchantment);
 }

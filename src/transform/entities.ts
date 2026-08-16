@@ -1,10 +1,10 @@
-// Converts a minecraft-data entity entry into this project's ParsedEntity shape.
+// Converts a minecraft-data entity entry into this project's Entity shape.
 
 import { fetchEntities, RawEntity } from '../sources/minecraft-data';
 import { namespaced } from '../util/id';
-import { ParsedEntity } from './types';
+import { Entity } from '../models/entity.model';
 
-export function parseEntity(raw: RawEntity): ParsedEntity {
+export function parseEntity(raw: RawEntity): Entity {
     return {
         id: namespaced(raw.name),
         displayName: raw.displayName,
@@ -15,7 +15,7 @@ export function parseEntity(raw: RawEntity): ParsedEntity {
     };
 }
 
-export async function buildEntities(version: string): Promise<ParsedEntity[]> {
+export async function buildEntities(version: string): Promise<Entity[]> {
     const raw = await fetchEntities(version);
     return raw.map(parseEntity);
 }

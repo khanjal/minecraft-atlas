@@ -1,4 +1,4 @@
-// Parses mcmeta's raw per-recipe JSON into this project's ParsedRecipe shape.
+// Parses mcmeta's raw per-recipe JSON into this project's Recipe shape.
 //
 // Port of Data Converter/lambda/helpers/minecraft/recipe.helpers.ts, re-pointed at mcmeta instead
 // of the hand-vendored recipe files. The input format barely changes (mcmeta *is* Mojang's data
@@ -39,11 +39,12 @@ import { fetchRecipe, listRecipeFiles, recipeNameFromPath } from '../sources/mcm
 import { mapWithConcurrency } from '../util/concurrency';
 import { namespaced } from '../util/id';
 import { resolveTag } from './tags';
-import { ParsedRecipe, ResolvedIngredient } from './types';
+import { Recipe } from '../models/recipe.model';
+import { Ingredient } from '../models/ingredient.model';
 
 type RawIngredientSpec = string | { item?: string; tag?: string } | RawIngredientSpec[];
 
-async function resolveIngredient(version: string, spec: RawIngredientSpec, quantity: number): Promise<ResolvedIngredient> {
+async function resolveIngredient(version: string, spec: RawIngredientSpec, quantity: number): Promise<Ingredient> {
     if (Array.isArray(spec)) {
         // A rare, explicit list of alternative items for one slot (not a tag reference) - e.g.
         // "either of these two exact items". Each entry is itself resolved and merged; in
@@ -78,7 +79,7 @@ async function resolveShapedIngredients(
     version: string,
     key: Record<string, RawIngredientSpec>,
     pattern: string[]
-): Promise<ResolvedIngredient[]> {
+): Promise<Ingredient[]> {
     const flat = pattern.join('');
     const symbols = Object.keys(key);
     return Promise.all(symbols.map(symbol => {
@@ -87,11 +88,11 @@ async function resolveShapedIngredients(
     }));
 }
 
-async function resolveShapelessIngredients(version: string, ingredients: RawIngredientSpec[]): Promise<ResolvedIngredient[]> {
+async function resolveShapelessIngredients(version: string, ingredients: RawIngredientSpec[]): Promise<Ingredient[]> {
     const resolved = await Promise.all(ingredients.map(spec => resolveIngredient(version, spec, 1)));
     // Multiple slots can name the same item/tag (e.g. 2 sugar in suspicious stew) - collapse
     // those into one entry with a summed quantity rather than reporting the same ingredient twice.
-    const byId = new Map<string, ResolvedIngredient>();
+    const byId = new Map<string, Ingredient>();
     for (const ingredient of resolved) {
         const existing = byId.get(ingredient.id);
         if (existing) {
@@ -111,7 +112,7 @@ function resolveResult(raw: any): { id: string; count: number } | null {
     return { id: namespaced(id), count: raw.result.count ?? 1 };
 }
 
-export async function parseRecipe(version: string, name: string, raw: any): Promise<ParsedRecipe | null> {
+export async function parseRecipe(version: string, name: string, raw: any): Promise<Recipe | null> {
     const type: string = raw.type.replace('minecraft:', '');
     const id = namespaced(name);
     const result = resolveResult(raw);
@@ -271,12 +272,12 @@ export async function parseRecipe(version: string, name: string, raw: any): Prom
     }
 }
 
-export async function buildRecipes(version: string, concurrency = 16): Promise<ParsedRecipe[]> {
+export async function buildRecipes(version: string, concurrency = 16): Promise<Recipe[]> {
     const files = await listRecipeFiles(version);
     const names = files.map(recipeNameFromPath);
     const parsed = await mapWithConcurrency(names, concurrency, async name => {
         const raw = await fetchRecipe(version, name);
         return parseRecipe(version, name, raw);
     });
-    return parsed.filter((recipe): recipe is ParsedRecipe => recipe !== null);
+    return parsed.filter((recipe): recipe is Recipe => recipe !== null);
 }
