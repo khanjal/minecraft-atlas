@@ -5,6 +5,7 @@
   "main": "built/index.js",
   "scripts": {
     "build": "tsc",
+    "generate:recipes": "ts-node scripts/generateRecipes.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "MIT",
