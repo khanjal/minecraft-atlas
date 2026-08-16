@@ -13,6 +13,7 @@ export { buildRecipes } from './transform/java/recipes';
 export { buildBlocks } from './transform/java/blocks';
 export { buildBiomes } from './transform/java/biomes';
 export { buildBedrockRecipes } from './transform/bedrock/recipes';
+export { buildBedrockEntities } from './transform/bedrock/entities';
 
 export type { Item } from './models/item.model';
 export type { Entity } from './models/entity.model';

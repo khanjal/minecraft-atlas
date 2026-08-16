@@ -7,6 +7,8 @@
 // there are many pre-release tags per release ("v1.26.40.05-preview") alongside the stable one.
 // Callers pass the exact tag rather than this module guessing which one is "latest stable".
 
+import { stripJsonComments } from '../../../util/jsonc';
+
 const REPO = 'Mojang/bedrock-samples';
 
 function rawUrl(tag: string, path: string): string {
@@ -39,6 +41,18 @@ export async function fetchJson<T = any>(tag: string, path: string): Promise<T> 
     return res.json() as Promise<T>;
 }
 
+// entities/*.json is real JSONC (see util/jsonc.ts) - recipes/*.json never needed this (all 1,756
+// parsed with plain JSON.parse), so this is kept separate rather than making fetchJson itself
+// comment-tolerant for files that never have comments to begin with.
+export async function fetchJsonc<T = any>(tag: string, path: string): Promise<T> {
+    const res = await fetch(rawUrl(tag, path));
+    if (!res.ok) {
+        throw new Error(`bedrock-samples: failed to fetch ${path} @ ${tag} (${res.status} ${res.statusText})`);
+    }
+    const text = await res.text();
+    return JSON.parse(stripJsonComments(text)) as T;
+}
+
 const RECIPES_DIR = 'behavior_pack/recipes/';
 
 export async function listRecipeFiles(tag: string): Promise<string[]> {
@@ -51,4 +65,18 @@ export function recipeNameFromPath(path: string): string {
 
 export async function fetchRecipe(tag: string, name: string): Promise<any> {
     return fetchJson(tag, `${RECIPES_DIR}${name}.json`);
+}
+
+const ENTITIES_DIR = 'behavior_pack/entities/';
+
+export async function listEntityFiles(tag: string): Promise<string[]> {
+    return listFiles(tag, ENTITIES_DIR);
+}
+
+export function entityNameFromPath(path: string): string {
+    return path.replace(ENTITIES_DIR, '').replace(/\.json$/, '');
+}
+
+export async function fetchEntity(tag: string, name: string): Promise<any> {
+    return fetchJsonc(tag, `${ENTITIES_DIR}${name}.json`);
 }

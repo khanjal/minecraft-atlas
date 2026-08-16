@@ -13,9 +13,10 @@ version. Also verified standalone by `npm install`-ing this into a scratch proje
 path and calling it via `require('minecraft-atlas')`:
 
 ```js
-const { buildSnapshot, buildBedrockRecipes } = require('minecraft-atlas');
+const { buildSnapshot, buildBedrockRecipes, buildBedrockEntities } = require('minecraft-atlas');
 const snapshot = await buildSnapshot('26.1');            // Java: items, entities, effects, ...
-const bedrockRecipes = await buildBedrockRecipes('v1.26.40.05'); // Bedrock: recipes only, see below
+const bedrockRecipes = await buildBedrockRecipes('v1.26.40.05');  // Bedrock: recipes, see below
+const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: entities, see below
 ```
 
 - `npm run generate -- 26.1` — the real Java entry point (`buildSnapshot`), one combined
@@ -25,8 +26,13 @@ const bedrockRecipes = await buildBedrockRecipes('v1.26.40.05'); // Bedrock: rec
 - `npm run generate:bedrock-recipes -- v1.26.40.05` — Bedrock recipes only (`buildBedrockRecipes`),
   `data/bedrock/v1.26.40.05/recipes.json`: **all 1,756 of 1,756** recipes that exist for that
   version - full coverage, better than Java's, since Bedrock's format turned out simpler once
-  investigated for real. Items/entities/effects/enchantments aren't covered for Bedrock - see
-  "Bedrock Edition" below for why.
+  investigated for real.
+- `npm run generate:bedrock-entities -- v1.26.40.05` — Bedrock entities only
+  (`buildBedrockEntities`), `data/bedrock/v1.26.40.05/entities.json`: all 127 of 127 entity files
+  parse, but this is a real, honest downgrade from Java's entity coverage rather than a parallel
+  win - see "Bedrock Edition" below for what's actually extractable from a behavior-pack entity
+  definition versus a flat catalog row. Items/effects/enchantments still aren't covered for
+  Bedrock - see "Bedrock Edition" below for why.
 - `merge/overlay.ts` and `diff/coverageReport.ts` take a consumer's own curated data as a
   parameter rather than reading any specific file (see "Curated data" below). Sanity-checked
   against Craft Helper's actual sheet snapshot (not part of this repo, run locally, not
@@ -37,16 +43,18 @@ const bedrockRecipes = await buildBedrockRecipes('v1.26.40.05'); // Bedrock: rec
 
 ### Tests
 
-`npm test` runs 51 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~1.5s, fully offline.
+`npm test` runs 61 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~2s, fully offline.
 Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`, both Java and Bedrock
-`recipes`, `tags`) has real fixture-based coverage now, not just the generic `match`/`overlay`/
-`coverageReport` utility layer - every fixture is real JSON fetched and verified against the live
-source during development, not fabricated. Tag resolution (`tags.ts`, and any Java recipe test that
-needs one) is tested by mocking `fetchTag` at the module boundary rather than the network, including
-a regression test for the shorthand-tag-reference bug found and fixed earlier (`#planks` with no
-explicit namespace) and a cache-hit-count test. Before this, every parser was only ever verified via
-live network calls against real data during development - real confidence, but slow, network-
-dependent, and nothing a CI run could rely on.
+`recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the generic
+`match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
+against the live source during development, not fabricated. Tag resolution (`tags.ts`, and any Java
+recipe test that needs one) is tested by mocking `fetchTag` at the module boundary rather than the
+network, including a regression test for the shorthand-tag-reference bug found and fixed earlier
+(`#planks` with no explicit namespace) and a cache-hit-count test. `util/jsonc.ts` (the comment
+stripper Bedrock entities need, see below) has its own tests for the case that matters most: a `//`
+that appears inside a real string value must not be treated as a comment. Before this, every parser
+was only ever verified via live network calls against real data during development - real
+confidence, but slow, network-dependent, and nothing a CI run could rely on.
 
 ## Why
 
@@ -88,7 +96,10 @@ src/
       minecraft-data/  wraps PrismarineJS/minecraft-data — items, entities, effects, enchantments [done]
       mcmeta/           wraps misode/mcmeta's {version}-data tag — recipe files + tag definitions [done]
     bedrock/
-      bedrock-samples/  wraps Mojang/bedrock-samples' {tag} — recipe files (behavior_pack/recipes/) [done]
+      bedrock-samples/  wraps Mojang/bedrock-samples' {tag} — recipe + entity files [done]
+  util/
+    jsonc.ts            string-aware `//` comment stripper - ~40% of bedrock-samples' entity
+                        files are JSONC despite the .json extension [done]
   transform/
     java/
       items.ts          minecraft-data item -> Item [done]
@@ -102,6 +113,8 @@ src/
       tags.ts              resolves #minecraft:x tags to concrete item ids, recursively [done]
     bedrock/
       recipes.ts          parses every bedrock-samples recipe type - full coverage [done]
+      entities.ts          parses every bedrock-samples entity file - id/category/family/
+                           width/height only, no displayName (genuinely unavailable) [done]
   merge/
     overlay.ts           joins a consumer's curated records onto base-layer records by name [done]
   diff/
@@ -192,7 +205,7 @@ slot (`netherite_tool_materials`), which a plain string couldn't represent.
 
 ### Bedrock Edition
 
-Recipes only, on purpose - not a first pass at "everything," a deliberate scope limit after
+Recipes and entities, on purpose - not a first pass at "everything," a deliberate scope limit after
 checking what's actually reliably available:
 
 - **minecraft-data has no Bedrock items/entities/effects/enchantments catalog at all.** Checked
@@ -202,9 +215,40 @@ checking what's actually reliably available:
 - **bedrock-samples' `items/` folder isn't a full catalog either** - checked directly: 77 files,
   all food items, spear examples, and bundles, missing basic vanilla items like diamond or
   iron_ingot entirely. It's an example set for behavior-pack tutorials, not the vanilla registry.
-  `entities/` (127 files, includes zombie/cow/axolotl) looks more complete but wasn't investigated
-  - a real, different schema (component-based behavior definitions, not a flat catalog) that needs
-  its own pass rather than a rushed guess at what's extractable from it.
+  Still not covered.
+
+#### Entities: real coverage, but a genuine downgrade from Java's
+
+`behavior_pack/entities/` (127 files, includes zombie/cow/axolotl) turned out to be a real,
+different schema from Java's flat `entities.json` catalog row: each file is a component-based
+*behavior* definition (AI priorities, breeding items, attack damage, ...), not a data record. It
+was never designed to answer "what is this called and how big is it," which is all
+`buildBedrockEntities` asks of it - so this is an honest downgrade, not a parallel win the way
+recipes turned out to be:
+
+- **`displayName` is genuinely unavailable, on all 127 files.** A behavior pack carries no
+  human-readable name at all; that only exists in a resource pack's lang file
+  (`entity.minecraft:cow.name=Cow`), a separate, unmerged source. Left `undefined` rather than
+  guessed from the id.
+- **No single field maps to Java's `type`.** The closest analog, `minecraft:type_family`'s
+  `family` list (e.g. cow: `["cow", "mob"]`), is a different shape (a list, not one value) and a
+  different vocabulary - kept as its own `Entity.family` field rather than forced into `type`.
+  Absent on 30/127 entities (mostly non-mob entities like `xp_orb`, `area_effect_cloud`).
+- **`category` (`description.spawn_category`) and `width`/`height`
+  (`minecraft:collision_box`) are both real but each absent on part of the set** - `category` on
+  20/127 (mostly non-spawnable entities like `arrow`, `boat`), collision box on 10/127
+  (`area_effect_cloud`, `lightning_bolt`, `ominous_item_spawner`, `shulker`, ...). Left
+  `undefined` rather than defaulted.
+- **~40% of files (51/127) are JSONC, not strict JSON**, despite the `.json` extension - real
+  `//` line comments (e.g. `armadillo.json`, `zombie.json`), found by `JSON.parse` failing outright
+  on them. `util/jsonc.ts`'s `stripJsonComments` handles this: a small string-aware stripper (walks
+  the text tracking whether it's inside a quoted value, including escaped quotes) rather than a
+  regex that would corrupt a string value that happens to contain `//` itself. No block comments
+  (`/* */`) were found in the survey, so only `//` is handled. Recipes never needed this - all
+  1,756 parse with plain `JSON.parse` - so it's a separate `fetchJsonc` rather than changing the
+  well-tested recipe fetch path.
+- **There is no `item.json`** (or any single file for the generic dropped-item entity) - not a
+  fetch gap, the file genuinely doesn't exist in the repo.
 
 Recipes are different: `behavior_pack/recipes/` really is the complete, official set - **1,756 of
 1,756 recipe files parse successfully**, better coverage than Java achieves, once the actual format
