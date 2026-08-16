@@ -39,7 +39,7 @@ import { fetchRecipe, listRecipeFiles, recipeNameFromPath } from '../../sources/
 import { mapWithConcurrency } from '../../util/concurrency';
 import { namespaced } from '../../util/id';
 import { resolveTag } from './tags';
-import { Recipe } from '../../models/recipe.model';
+import { Recipe, RecipeResultEffect } from '../../models/recipe.model';
 import { Ingredient } from '../../models/ingredient.model';
 
 type RawIngredientSpec = string | { item?: string; tag?: string } | RawIngredientSpec[];
@@ -104,12 +104,32 @@ async function resolveShapelessIngredients(version: string, ingredients: RawIngr
     return [...byId.values()];
 }
 
-function resolveResult(raw: any): { id: string; count: number } | null {
+// A recipe's result can carry real gameplay data beyond "which item, how many" via Mojang's data
+// components system - confirmed on every suspicious_stew_from_*.json recipe (17 of them, checked
+// individually against known real effects: dandelion -> saturation, wither_rose -> wither,
+// torchflower -> night vision, ...), each declaring
+// result.components["minecraft:suspicious_stew_effects"]. Not specific to suspicious stew in how
+// it's read here - any recipe with that same component key gets its effects captured the same way
+// - but suspicious stew is the only case actually verified to use it as of 26.1.
+function resolveResultEffects(components: any): RecipeResultEffect[] | undefined {
+    const effects = components?.['minecraft:suspicious_stew_effects'];
+    if (!Array.isArray(effects)) {
+        return undefined;
+    }
+    return effects.map((effect: any) => ({ id: namespaced(effect.id), durationTicks: effect.duration }));
+}
+
+function resolveResult(raw: any): { id: string; count: number; effects?: RecipeResultEffect[] } | null {
     if (!raw.result) {
         return null;
     }
     const id = raw.result.id ?? raw.result.item ?? raw.result;
-    return { id: namespaced(id), count: raw.result.count ?? 1 };
+    const effects = resolveResultEffects(raw.result.components);
+    return {
+        id: namespaced(id),
+        count: raw.result.count ?? 1,
+        ...(effects ? { effects } : {}),
+    };
 }
 
 export async function parseRecipe(version: string, name: string, raw: any): Promise<Recipe | null> {

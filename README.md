@@ -140,6 +140,23 @@ Converter pipeline couldn't do this: it kept a tag ingredient as a bare name and
 later join against the curated sheet's per-item `groups` field to find matches, so this is a real
 capability gain, not just a port.
 
+### Recipe result effects
+
+A recipe's `result` can carry real gameplay data beyond "which item, how many": Mojang's data
+components system lets a recipe declare, say, what status effect the crafted item confers. Found
+by inspecting the real recipe files, not assumed - every `suspicious_stew_from_*.json` (all 17)
+declares `result.components["minecraft:suspicious_stew_effects"]`, an array of `{id, duration}`,
+verified against known real effects across 5 different flowers (dandelion -> saturation,
+wither_rose -> wither, torchflower -> night vision, azure_bluet/open_eyeblossom -> blindness).
+`Recipe.result.effects` (`RecipeResultEffect[]`, ids namespaced the same way `Effect.id` is, so a
+consumer can join straight against the effects catalog) captures this - not hardcoded to
+suspicious stew specifically, any recipe using that same component key is picked up the same way,
+though suspicious stew is the only case actually confirmed to use it as of 26.1. Previously
+discarded entirely: this is genuinely new data no part of the old pipeline (vendored files or the
+custom `suspicious_stew.json` override some of it used) ever exposed at all - it can't be, since
+the old pipeline's `crafting_special_suspiciousstew` type was one generic "any flower" recipe with
+no way to represent 17 different effects on a single recipe in the first place.
+
 ### Bedrock Edition
 
 Recipes only, on purpose - not a first pass at "everything," a deliberate scope limit after
