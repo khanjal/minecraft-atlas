@@ -7,9 +7,10 @@ public source has.
 ## Status
 
 `sources/mcmeta` and `transform/{recipes,tags}` are implemented and verified against real data:
-`npm run generate:recipes -- 26.1` fetches and parses all ~1,450 crafting/smelting/stonecutting/
-smithing recipes for that version directly from mcmeta, with tags fully resolved to concrete item
-lists (not just the tag's own name — see Structure below). Everything else is still a stub.
+`npm run generate:recipes -- 26.1` fetches and parses 1,514 of the 1,515 recipes that exist for
+that version directly from mcmeta (every type except one deliberately deferred case — see below),
+with tags fully resolved to concrete item lists, not just the tag's own name. Everything else is
+still a stub.
 
 ## Why
 
@@ -39,7 +40,7 @@ src/
   transform/
     items.ts           minecraft-data item -> base Item shape
     entities.ts         minecraft-data entity -> base Entity shape
-    recipes.ts           parses shaped/shapeless/smelting-family/stonecutting/smithing recipes [done]
+    recipes.ts           parses every mcmeta recipe type except one deferred case [done]
     tags.ts               resolves #minecraft:x tags to concrete item ids, recursively [done]
   merge/
     overlay.ts           joins curated data (synonyms, tips, breeding/taming, ...) onto the base layer
@@ -53,13 +54,34 @@ scripts/
                             version's recipes, writes data/<version>/recipes.json (gitignored)
 ```
 
-`recipes.ts` currently covers crafting_shaped, crafting_shapeless, smelting/blasting/smoking/
-campfire_cooking, stonecutting, smithing_transform, and smithing_trim. Not yet ported: the
-~15 crafting_special_* one-off types (bookcloning, firework_*, shielddecoration, ...),
-crafting_transmute, crafting_dye, crafting_imbue, crafting_decorated_pot, and brewing (which isn't
-data-pack driven at all, so it needs a different source). Tag ingredients resolve to their real,
-recursively-expanded item list via mcmeta's own tag definitions — e.g. a smithing trim's "any
-armor piece" resolves to all 29 concrete armor items, not just the tag's name. The old Data
+### Recipe type coverage
+
+`recipes.ts` covers every recipe type that exists in mcmeta's 26.1 data pack (enumerated and
+counted directly, not assumed) except one:
+
+- **crafting_special_firework_star** is deliberately deferred. Real Minecraft's firework star
+  recipe has required ingredients (dye, fuel) *and* independently optional ones (trail, twinkle)
+  *and* a set of mutually-exclusive alternative "shape" ingredients (pick at most one of
+  burst/creeper/large_ball/star). Flattening that into the same flat ingredient list every other
+  type uses would misreport an optional ingredient as required - it needs its own shape in the
+  type system before it can be modeled honestly, rather than a fast but wrong port.
+- **brewing** isn't covered because there's no structured source for it at all - no recipe JSON
+  file lists "potion of X + ingredient -> potion of Y", so the original Data Converter pipeline
+  hand-authored a static potion table instead of parsing one. That's curated content, not a
+  parse-a-source problem, so it belongs in `merge/` against a real potion-effect list, not here.
+
+Several of the "special" crafting types (bannerduplicate, bookcloning, decorated_pot,
+firework_rocket, firework_star_fade, mapextending, shielddecoration) turned out to carry real,
+well-structured ingredient fields in the current game format - the original `recipe.helpers.ts`'s
+comments assumed several of these had nothing to extract, which was true when that code was
+written but isn't anymore. Verified by fetching and reading the real mcmeta files rather than
+trusting the old comments. `crafting_transmute`, `crafting_dye`, and `crafting_imbue` (all 1.21.2+
+additions) are covered too - `crafting_dye` now includes the actual dye ingredient, which the old
+pipeline had no field access to at all and silently dropped.
+
+Tag ingredients resolve to their real, recursively-expanded item list via mcmeta's own tag
+definitions — e.g. a smithing trim's "any armor piece" resolves to all 29 concrete armor items, a
+decorated pot's four sherd slots each resolve to the real 24-item sherd+brick tag. The old Data
 Converter pipeline couldn't do this: it kept a tag ingredient as a bare name and depended on a
 later join against the curated sheet's per-item `groups` field to find matches, so this is a real
 capability gain, not just a port.
