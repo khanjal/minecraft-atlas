@@ -15,6 +15,8 @@ export { buildBiomes } from './transform/java/biomes';
 export { buildBedrockRecipes } from './transform/bedrock/recipes';
 export { buildBedrockEntities } from './transform/bedrock/entities';
 
+export { resolveItemSymbol, resolveFixedSymbol, resolveHashedSymbol, canonicalizeName } from './display/resolveItemSymbol';
+
 export type { Item } from './models/item.model';
 export type { Entity } from './models/entity.model';
 export type { Effect } from './models/effect.model';
@@ -27,3 +29,4 @@ export type { CuratedRecord } from './models/curated-record.model';
 export type { Snapshot } from './models/snapshot.model';
 export type { Overlaid } from './merge/overlay';
 export type { CoverageGap } from './diff/coverageReport';
+export type { ItemSymbol } from './models/item-symbol.model';

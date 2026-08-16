@@ -43,7 +43,7 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 ### Tests
 
-`npm test` runs 61 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~2s, fully offline.
+`npm test` runs 73 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~2s, fully offline.
 Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`, both Java and Bedrock
 `recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the generic
 `match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
@@ -115,6 +115,13 @@ src/
       recipes.ts          parses every bedrock-samples recipe type - full coverage [done]
       entities.ts          parses every bedrock-samples entity file - id/category/family/
                            width/height only, no displayName (genuinely unavailable) [done]
+  display/
+    itemSymbols.ts        hand-picked symbol+colour identity data (~180 items/blocks) and the real
+                          dye/copper-oxidation/potion-effect colour tables - ported from Craft
+                          Helper (github.com/khanjal/Craft-Helper/issues/3) [done]
+    resolveItemSymbol.ts   resolveItemSymbol(name, usedSoFar) - reserved match, then colour-family
+                          match, then a deterministic name-derived hash fallback that avoids
+                          colliding with what's already assigned [done]
   merge/
     overlay.ts           joins a consumer's curated records onto base-layer records by name [done]
   diff/
@@ -312,6 +319,27 @@ and gets back either a join (`overlay`) or a gap report (`coverageReport`). This
 "does the curated overlay ship from this repo" open question from earlier: the *mechanism* does,
 here, generically; the *data* (and whatever eventually reads the sheet into that shape) stays
 wherever Craft Helper's own pipeline lives.
+
+### Item/block display symbols
+
+`display/` holds real item/block visual-identity data (a symbol+colour per name) ported wholesale
+from Craft Helper's `lambda/helpers/itemSymbols.ts` and `recipeGridHelpers.ts`
+([khanjal/Craft-Helper#3](https://github.com/khanjal/Craft-Helper/issues/3)): this wasn't
+Craft-Helper-specific in what it represents (a diamond's shape, the real Mojang dye/potion/copper-
+oxidation colours), only in where it used to live, so any consumer building a visual multi-item
+display (not just Craft Helper's Alexa recipe-grid screen) can use it. `resolveItemSymbol(name,
+usedSoFar)` resolves, in order: a hand-picked reserved match (~180 items), a colour-family match
+(dye/copper/potion families), then a deterministic name-derived hash that walks forward through an
+8-shape x 8-colour space to avoid colliding with whatever's already in `usedSoFar` - the exact same
+three-tier resolution Craft Helper's recipe-grid rendering already used, just relocated. What stayed
+behind in Craft Helper: the Alexa-APL screen layout constants (cell backgrounds, the arrow/result
+cell styling) and the grid/legend assembly logic itself (`BuildSymbolMap`, `BuildRecipeGrid`, ...) -
+those are genuinely specific to that one screen, not general item data.
+
+Verified as a real port, not just a faithful-looking rewrite: before touching Craft Helper's code, a
+snapshot script rendered every one of the 1,139 real, griddable 26.2 recipes' full symbol map, grid,
+and legend using the original code; after wiring Craft Helper to consume this module instead, the
+same script produced **byte-identical output** across all 1,139 recipes.
 
 ## Open questions
 
