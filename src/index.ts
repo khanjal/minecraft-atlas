@@ -10,6 +10,8 @@ export { buildEntities } from './transform/java/entities';
 export { buildEffects } from './transform/java/effects';
 export { buildEnchantments } from './transform/java/enchantments';
 export { buildRecipes } from './transform/java/recipes';
+export { buildBlocks } from './transform/java/blocks';
+export { buildBiomes } from './transform/java/biomes';
 export { buildBedrockRecipes } from './transform/bedrock/recipes';
 
 export type { Item } from './models/item.model';
@@ -18,6 +20,8 @@ export type { Effect } from './models/effect.model';
 export type { Enchantment } from './models/enchantment.model';
 export type { Recipe } from './models/recipe.model';
 export type { Ingredient } from './models/ingredient.model';
+export type { Block } from './models/block.model';
+export type { Biome } from './models/biome.model';
 export type { CuratedRecord } from './models/curated-record.model';
 export type { Snapshot } from './models/snapshot.model';
 export type { Overlaid } from './merge/overlay';

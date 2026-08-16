@@ -1,8 +1,8 @@
 # minecraft-atlas
 
-Merged, versioned Minecraft data — items, entities, recipes, effects, enchantments, for both Java
-and Bedrock Edition — assembled from official/community upstream sources instead of hand-vendored,
-plus a curated overlay for the parts no public source has.
+Merged, versioned Minecraft data — items, entities, recipes, effects, enchantments, blocks,
+biomes, for both Java and Bedrock Edition — assembled from official/community upstream sources
+instead of hand-vendored, plus a curated overlay for the parts no public source has.
 
 ## Status
 
@@ -17,8 +17,9 @@ const bedrockRecipes = await buildBedrockRecipes('v1.26.40.05'); // Bedrock: rec
 ```
 
 - `npm run generate -- 26.1` — the real Java entry point (`buildSnapshot`), one combined
-  `data/java/26.1/snapshot.json`: 1,506 items, 157 entities, 40 effects, 43 enchantments, 1,514 of
-  1,515 recipes (every type except one deliberately deferred case — see below).
+  `data/java/26.1/snapshot.json`: 1,506 items, 157 entities, 40 effects, 43 enchantments, 1,168
+  blocks, 65 biomes, 1,514 of 1,515 recipes (every type except one deliberately deferred case —
+  see below).
 - `npm run generate:bedrock-recipes -- v1.26.40.05` — Bedrock recipes only (`buildBedrockRecipes`),
   `data/bedrock/v1.26.40.05/recipes.json`: **all 1,756 of 1,756** recipes that exist for that
   version - full coverage, better than Java's, since Bedrock's format turned out simpler once
@@ -60,7 +61,8 @@ src/
   index.ts            the public API - only what's exported here is a stability guarantee [done]
   models/
     item.model.ts, entity.model.ts, effect.model.ts, enchantment.model.ts,
-    recipe.model.ts, ingredient.model.ts, curated-record.model.ts, snapshot.model.ts
+    recipe.model.ts, ingredient.model.ts, block.model.ts, biome.model.ts,
+    curated-record.model.ts, snapshot.model.ts
                         one interface per file, matching Data Converter's models/minecraft/*.model.ts
                         naming convention - the ONE shared layer both editions produce the same
                         shape into, so a consumer works with one Recipe/Item/etc. type regardless
@@ -78,6 +80,9 @@ src/
       entities.ts        minecraft-data entity -> Entity [done]
       effects.ts          minecraft-data effect -> Effect, incl. its PascalCase id fix-up [done]
       enchantments.ts      minecraft-data enchantment -> Enchantment [done]
+      blocks.ts             minecraft-data block -> Block, resolving drops/harvestTools'
+                            numeric item ids into real item ids by joining against items.json [done]
+      biomes.ts               minecraft-data biome -> Biome, incl. packed-int color -> hex [done]
       recipes.ts          parses every mcmeta recipe type except one deferred case [done]
       tags.ts              resolves #minecraft:x tags to concrete item ids, recursively [done]
     bedrock/
@@ -90,15 +95,15 @@ src/
   schema/
     public.ts             buildSnapshot(version) - bundles every java/ transform module into one
                           Snapshot { schemaVersion, minecraftVersion, generatedAt, items,
-                          entities, effects, enchantments, recipes }. Java only - see "Bedrock
-                          Edition" below for why there's no equivalent Bedrock snapshot yet [done]
+                          entities, effects, enchantments, recipes, blocks, biomes }. Java only -
+                          see "Bedrock Edition" below for why there's no Bedrock snapshot yet [done]
 scripts/
   generate.ts               `npm run generate -- <version>` — the real Java entry point, one
                             data/java/<version>/snapshot.json via buildSnapshot()
   generateRecipes.ts         `npm run generate:recipes -- <version>` — Java recipes only, for
                             debugging that module in isolation
   generateBase.ts             `npm run generate:base -- <version>` — Java items/entities/effects/
-                            enchantments only, same reason
+                            enchantments/blocks/biomes only, same reason
   generateBedrockRecipes.ts    `npm run generate:bedrock-recipes -- <tag>` — Bedrock recipes,
                             data/bedrock/<tag>/recipes.json (all data/ output gitignored)
 ```
@@ -181,6 +186,18 @@ before checking:
 - **A recipe's `result` can be an array, not just one object** - e.g. `cake` also returns the 3
   emptied milk buckets used to make it. Only the first (the actual product) is kept; the
   simplification is documented in code rather than silently dropping the rest unremarked.
+
+### Blocks and biomes
+
+`blocks.json`'s `drops` and `harvestTools` reference items purely by number (`stone`'s
+`drops: [35]`) - checked whether that's really items.json's own id space before assuming it, by
+looking up id 35 there directly: it's `cobblestone`. Confirmed correct, so `buildBlocks` fetches
+`items.json` alongside `blocks.json` and resolves both fields into real item ids (`stone.drops` ->
+`["minecraft:cobblestone"]`, `stone.harvestTools` -> all 7 pickaxe tiers by name) rather than
+leaving them as bare numbers a consumer would have to resolve themselves.
+
+Biomes needed one small conversion: minecraft-data stores each biome's tint as a packed decimal
+RGB int (`7254527`), converted here to the hex string (`"#6eb1ff"`) anyone actually wants.
 
 ### One data-quality fix along the way
 

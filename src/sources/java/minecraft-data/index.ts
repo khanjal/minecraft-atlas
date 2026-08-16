@@ -65,6 +65,37 @@ export interface RawEnchantment {
     discoverable: boolean;
 }
 
+// harvestTools' keys and drops' entries are item ids in the exact same numbering as items.json's
+// own `id` (verified: stone's drops: [35] is items.json id 35, "cobblestone") - blocks and items
+// share one id space here, so transform/java/blocks.ts can resolve both into real item ids by
+// joining against items.json rather than leaving them as opaque numbers.
+export interface RawBlock {
+    id: number;
+    name: string;
+    displayName: string;
+    hardness: number;
+    resistance: number;
+    diggable: boolean;
+    material: string;
+    transparent: boolean;
+    emitLight: number;
+    filterLight: number;
+    harvestTools?: Record<string, boolean>;
+    drops: number[];
+    boundingBox: string;
+}
+
+export interface RawBiome {
+    id: number;
+    name: string;
+    displayName: string;
+    category: string;
+    dimension: string;
+    temperature: number;
+    has_precipitation: boolean;
+    color: number;
+}
+
 export async function fetchItems(version: string): Promise<RawItem[]> {
     return fetchJson<RawItem[]>(version, 'items');
 }
@@ -79,4 +110,12 @@ export async function fetchEffects(version: string): Promise<RawEffect[]> {
 
 export async function fetchEnchantments(version: string): Promise<RawEnchantment[]> {
     return fetchJson<RawEnchantment[]>(version, 'enchantments');
+}
+
+export async function fetchBlocks(version: string): Promise<RawBlock[]> {
+    return fetchJson<RawBlock[]>(version, 'blocks');
+}
+
+export async function fetchBiomes(version: string): Promise<RawBiome[]> {
+    return fetchJson<RawBiome[]>(version, 'biomes');
 }
