@@ -49,7 +49,11 @@ src/
 
 ## Open questions
 
-- License for this repo's own code, and separately, whether redistributing Mojang-derived data
-  (especially icons/images) is fine under Mojang's usage guidelines — not yet checked.
+- Whether redistributing Mojang-derived data (especially icons/images) is fine under Mojang's
+  usage guidelines — not yet checked.
 - Whether the curated overlay (`merge/`) ships from this repo or a separate one, since it's the
   Craft-Helper-specific part and the rest above it is general-purpose.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
