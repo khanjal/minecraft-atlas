@@ -6,22 +6,27 @@ public source has.
 
 ## Status
 
-Both sources and every `transform/` module are implemented and verified against real 26.1 data:
+Every module is implemented, and the package is genuinely consumable now - not just internally
+consistent. Verified by actually `npm install`-ing it into a scratch project from a local path and
+calling it via `require('minecraft-atlas')`, the same way a real consumer (e.g. Data Converter)
+eventually would:
 
-- `npm run generate:recipes -- 26.1` — 1,514 of 1,515 recipes (every type except one deliberately
-  deferred case — see below), tags fully resolved to concrete item lists.
-- `npm run generate:base -- 26.1` — 1,506 items, 157 entities, 40 effects, 43 enchantments.
+```js
+const { buildSnapshot } = require('minecraft-atlas');
+const snapshot = await buildSnapshot('26.1');
+// snapshot.items, .entities, .effects, .enchantments, .recipes, .schemaVersion
+```
 
-`merge/overlay.ts` and `diff/coverageReport.ts` are implemented too - both take a consumer's own
-curated data as a parameter rather than reading any specific file (see "Curated data" below), so
-they're covered by unit tests with small fixtures (`npm test`) rather than a real generate script.
-Sanity-checked against Craft Helper's actual sheet snapshot (not part of this repo, run locally,
-not committed): 274 items in minecraft-data 26.1 have no matching sheet entry, and the rename
-heuristic correctly separates 21 real Mojang renames ("Iron Block" -> "Block of Iron", etc.) from
-253 genuinely new items - consistent with the gap this project's investigation surfaced in the
-first place.
-
-`schema/public.ts` is still a stub.
+- `npm run generate -- 26.1` — the real public entry point (`buildSnapshot`), one combined
+  `data/26.1/snapshot.json`: 1,506 items, 157 entities, 40 effects, 43 enchantments, 1,514 of
+  1,515 recipes (every type except one deliberately deferred case — see below).
+- `merge/overlay.ts` and `diff/coverageReport.ts` take a consumer's own curated data as a
+  parameter rather than reading any specific file (see "Curated data" below) - covered by unit
+  tests with small fixtures (`npm test`) rather than a generate script. Sanity-checked against
+  Craft Helper's actual sheet snapshot (not part of this repo, run locally, not committed): 274
+  items in minecraft-data 26.1 have no matching sheet entry, and the rename heuristic correctly
+  separates 21 real Mojang renames ("Iron Block" -> "Block of Iron", etc.) from 253 genuinely new
+  items - consistent with the gap this project's investigation surfaced in the first place.
 
 ## Why
 
@@ -45,6 +50,7 @@ hand-maintained; this project is about not hand-maintaining the raw game data un
 
 ```
 src/
+  index.ts            the public API - only what's exported here is a stability guarantee [done]
   models/
     item.model.ts, entity.model.ts, effect.model.ts, enchantment.model.ts,
     recipe.model.ts, ingredient.model.ts, curated-record.model.ts
@@ -67,11 +73,16 @@ src/
     coverageReport.ts     flags base-layer records with no curated match, with a rename-vs-new
                           heuristic - see "Curated data" below [done]
   schema/
-    public.ts             the stable versioned output shape actually published
+    public.ts             buildSnapshot(version) - bundles every transform/ module into one
+                          Snapshot { schemaVersion, minecraftVersion, generatedAt, items,
+                          entities, effects, enchantments, recipes } [done]
 scripts/
-  generateRecipes.ts       `npm run generate:recipes -- <version>` — recipes, one file per version
-  generateBase.ts           `npm run generate:base -- <version>` — items/entities/effects/enchantments
-                            (both write into data/<version>/, gitignored)
+  generate.ts               `npm run generate -- <version>` — the real entry point, one
+                            data/<version>/snapshot.json via buildSnapshot()
+  generateRecipes.ts         `npm run generate:recipes -- <version>` — recipes only, for
+                            debugging that module in isolation
+  generateBase.ts             `npm run generate:base -- <version>` — items/entities/effects/
+                            enchantments only, same reason (all gitignored under data/)
 ```
 
 ### Recipe type coverage

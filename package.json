@@ -3,8 +3,13 @@
   "version": "0.1.0",
   "description": "Merged, versioned Minecraft data (items, entities, recipes, and more) drawn from PrismarineJS/minecraft-data and misode/mcmeta, plus a curated overlay.",
   "main": "built/index.js",
+  "types": "built/index.d.ts",
+  "files": [
+    "built"
+  ],
   "scripts": {
     "build": "tsc",
+    "generate": "ts-node scripts/generate.ts",
     "generate:recipes": "ts-node scripts/generateRecipes.ts",
     "generate:base": "ts-node scripts/generateBase.ts",
     "test": "node --require ts-node/register --test \"src/**/*.test.ts\""

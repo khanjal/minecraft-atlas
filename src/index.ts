@@ -1,0 +1,23 @@
+// Public API. Only what's exported here is meant to be depended on by consumers - everything
+// else under src/ is reachable by path but not a stability guarantee.
+
+export { buildSnapshot } from './schema/public';
+export { overlay } from './merge/overlay';
+export { buildCoverageReport } from './diff/coverageReport';
+
+export { buildItems } from './transform/items';
+export { buildEntities } from './transform/entities';
+export { buildEffects } from './transform/effects';
+export { buildEnchantments } from './transform/enchantments';
+export { buildRecipes } from './transform/recipes';
+
+export type { Item } from './models/item.model';
+export type { Entity } from './models/entity.model';
+export type { Effect } from './models/effect.model';
+export type { Enchantment } from './models/enchantment.model';
+export type { Recipe } from './models/recipe.model';
+export type { Ingredient } from './models/ingredient.model';
+export type { CuratedRecord } from './models/curated-record.model';
+export type { Snapshot } from './models/snapshot.model';
+export type { Overlaid } from './merge/overlay';
+export type { CoverageGap } from './diff/coverageReport';

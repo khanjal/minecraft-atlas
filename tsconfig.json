@@ -11,9 +11,13 @@
         "moduleResolution": "node",
         "strict": true,
         "pretty": true,
-        "removeComments": true
+        "removeComments": true,
+        "declaration": true
     },
     "include": [
         "src/**/*"
+    ],
+    "exclude": [
+        "src/**/*.test.ts"
     ]
 }
