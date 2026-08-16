@@ -6,9 +6,11 @@ instead of hand-vendored, plus a curated overlay for the parts no public source 
 
 ## Status
 
-Java is fully implemented and genuinely consumable, not just internally consistent - verified by
-actually `npm install`-ing this into a scratch project from a local path and calling it via
-`require('minecraft-atlas')`, the same way a real consumer (e.g. Data Converter) eventually would:
+Java is fully implemented and in real use, not just internally consistent - Data Converter (the
+Craft Helper Alexa skill's build pipeline) depends on this directly and generates its actual
+recipe/item data through it as of 2026-08-16, replacing ~1,500 hand-vendored recipe files per
+version. Also verified standalone by `npm install`-ing this into a scratch project from a local
+path and calling it via `require('minecraft-atlas')`:
 
 ```js
 const { buildSnapshot, buildBedrockRecipes } = require('minecraft-atlas');
@@ -26,12 +28,25 @@ const bedrockRecipes = await buildBedrockRecipes('v1.26.40.05'); // Bedrock: rec
   investigated for real. Items/entities/effects/enchantments aren't covered for Bedrock - see
   "Bedrock Edition" below for why.
 - `merge/overlay.ts` and `diff/coverageReport.ts` take a consumer's own curated data as a
-  parameter rather than reading any specific file (see "Curated data" below) - covered by unit
-  tests with small fixtures (`npm test`) rather than a generate script. Sanity-checked against
-  Craft Helper's actual sheet snapshot (not part of this repo, run locally, not committed): 274
-  items in minecraft-data 26.1 have no matching sheet entry, and the rename heuristic correctly
-  separates 21 real Mojang renames ("Iron Block" -> "Block of Iron", etc.) from 253 genuinely new
-  items - consistent with the gap this project's investigation surfaced in the first place.
+  parameter rather than reading any specific file (see "Curated data" below). Sanity-checked
+  against Craft Helper's actual sheet snapshot (not part of this repo, run locally, not
+  committed): 274 items in minecraft-data 26.1 have no matching sheet entry, and the rename
+  heuristic correctly separates 21 real Mojang renames ("Iron Block" -> "Block of Iron", etc.)
+  from 253 genuinely new items - consistent with the gap this project's investigation surfaced in
+  the first place.
+
+### Tests
+
+`npm test` runs 51 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~1.5s, fully offline.
+Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`, both Java and Bedrock
+`recipes`, `tags`) has real fixture-based coverage now, not just the generic `match`/`overlay`/
+`coverageReport` utility layer - every fixture is real JSON fetched and verified against the live
+source during development, not fabricated. Tag resolution (`tags.ts`, and any Java recipe test that
+needs one) is tested by mocking `fetchTag` at the module boundary rather than the network, including
+a regression test for the shorthand-tag-reference bug found and fixed earlier (`#planks` with no
+explicit namespace) and a cache-hit-count test. Before this, every parser was only ever verified via
+live network calls against real data during development - real confidence, but slow, network-
+dependent, and nothing a CI run could rely on.
 
 ## Why
 
