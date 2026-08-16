@@ -1,0 +1,17 @@
+{
+  "name": "minecraft-atlas",
+  "version": "0.1.0",
+  "description": "Merged, versioned Minecraft data (items, entities, recipes, and more) drawn from PrismarineJS/minecraft-data and misode/mcmeta, plus a curated overlay.",
+  "main": "built/index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {},
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "@types/node": "^22.20.1"
+  }
+}
