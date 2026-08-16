@@ -18,3 +18,42 @@ export interface ParsedRecipe {
     pattern?: string[];
     ingredients: ResolvedIngredient[];
 }
+
+export interface ParsedItem {
+    id: string;
+    displayName: string;
+    stackSize: number;
+    maxDurability?: number;
+    enchantCategories?: string[];
+    // Item ids this can be repaired with on an anvil, namespaced.
+    repairWith?: string[];
+}
+
+export interface ParsedEntity {
+    id: string;
+    displayName: string;
+    type: string;
+    category?: string;
+    width: number;
+    height: number;
+}
+
+export interface ParsedEffect {
+    id: string;
+    displayName: string;
+    category: 'good' | 'bad';
+}
+
+export interface ParsedEnchantment {
+    id: string;
+    displayName: string;
+    maxLevel: number;
+    treasureOnly: boolean;
+    curse: boolean;
+    tradeable: boolean;
+    discoverable: boolean;
+    weight: number;
+    category: string;
+    // Enchantment ids this can't coexist with on the same item, namespaced.
+    excludes: string[];
+}

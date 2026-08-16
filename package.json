@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "generate:recipes": "ts-node scripts/generateRecipes.ts",
+    "generate:base": "ts-node scripts/generateBase.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "license": "MIT",

@@ -6,11 +6,13 @@ public source has.
 
 ## Status
 
-`sources/mcmeta` and `transform/{recipes,tags}` are implemented and verified against real data:
-`npm run generate:recipes -- 26.1` fetches and parses 1,514 of the 1,515 recipes that exist for
-that version directly from mcmeta (every type except one deliberately deferred case — see below),
-with tags fully resolved to concrete item lists, not just the tag's own name. Everything else is
-still a stub.
+Both sources and every `transform/` module are implemented and verified against real 26.1 data:
+
+- `npm run generate:recipes -- 26.1` — 1,514 of 1,515 recipes (every type except one deliberately
+  deferred case — see below), tags fully resolved to concrete item lists.
+- `npm run generate:base -- 26.1` — 1,506 items, 157 entities, 40 effects, 43 enchantments.
+
+`merge/` and `diff/` (the curated-data join and the coverage-gap report) are still stubs.
 
 ## Why
 
@@ -35,11 +37,13 @@ hand-maintained; this project is about not hand-maintaining the raw game data un
 ```
 src/
   sources/
-    minecraft-data/   wraps PrismarineJS/minecraft-data — items, entities, effects, enchantments
+    minecraft-data/   wraps PrismarineJS/minecraft-data — items, entities, effects, enchantments [done]
     mcmeta/            wraps misode/mcmeta's {version}-data tag — recipe files + tag definitions [done]
   transform/
-    items.ts           minecraft-data item -> base Item shape
-    entities.ts         minecraft-data entity -> base Entity shape
+    items.ts           minecraft-data item -> ParsedItem [done]
+    entities.ts         minecraft-data entity -> ParsedEntity [done]
+    effects.ts           minecraft-data effect -> ParsedEffect, incl. its PascalCase id fix-up [done]
+    enchantments.ts       minecraft-data enchantment -> ParsedEnchantment [done]
     recipes.ts           parses every mcmeta recipe type except one deferred case [done]
     tags.ts               resolves #minecraft:x tags to concrete item ids, recursively [done]
   merge/
@@ -50,8 +54,9 @@ src/
   schema/
     public.ts             the stable versioned output shape actually published
 scripts/
-  generateRecipes.ts       `npm run generate:recipes -- <version>` — fetches + parses a whole
-                            version's recipes, writes data/<version>/recipes.json (gitignored)
+  generateRecipes.ts       `npm run generate:recipes -- <version>` — recipes, one file per version
+  generateBase.ts           `npm run generate:base -- <version>` — items/entities/effects/enchantments
+                            (both write into data/<version>/, gitignored)
 ```
 
 ### Recipe type coverage
@@ -85,6 +90,14 @@ decorated pot's four sherd slots each resolve to the real 24-item sherd+brick ta
 Converter pipeline couldn't do this: it kept a tag ingredient as a bare name and depended on a
 later join against the curated sheet's per-item `groups` field to find matches, so this is a real
 capability gain, not just a port.
+
+### One data-quality fix along the way
+
+minecraft-data's `effects.json` stores its own `name` field as PascalCase ("MiningFatigue",
+"NightVision", "DolphinsGrace") rather than the real snake_case registry id every other file uses
+("minecraft:mining_fatigue") - items, entities, and enchantments don't have this quirk, only
+effects. `transform/effects.ts` converts it rather than carrying the PascalCase form through, so
+every id this project produces is the real, namespaced Mojang id, consistently.
 
 ## Open questions
 
