@@ -8,4 +8,10 @@ export interface Ingredient {
     // How many of this ingredient the recipe needs - grid-cell count for a shaped recipe,
     // slot count for shapeless.
     quantity: number;
+    // The recipe's own grid-pattern key this ingredient fills (e.g. "#" in a pattern like
+    // ["# #", "###"]) - only present on a shaped recipe's ingredients, where it's needed to place
+    // each ingredient in the right grid cell. Mojang's own pattern keys are arbitrary per recipe
+    // (diamond might be "#" in one recipe, "D" in the next), so this is only meaningful alongside
+    // that same recipe's own `pattern`, not as a stable identity across recipes.
+    symbol?: string;
 }

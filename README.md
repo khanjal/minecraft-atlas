@@ -157,6 +157,24 @@ custom `suspicious_stew.json` override some of it used) ever exposed at all - it
 the old pipeline's `crafting_special_suspiciousstew` type was one generic "any flower" recipe with
 no way to represent 17 different effects on a single recipe in the first place.
 
+### Grid-ready shaped ingredients, and named slots for small fixed-ingredient types
+
+`Ingredient.symbol` carries a shaped recipe's own pattern-grid key (e.g. `"#"` in
+`["# #", "###"]`) - needed by any consumer rendering an actual crafting-grid UI, which has to
+place each ingredient in the right cell, not just list them. Found to be a real gap while scoping
+Craft Helper's own recipe-grid screen against this data: it was being computed internally (to work
+out ingredient quantity) and then discarded rather than kept on the output.
+
+`Recipe.template`/`.base`/`.addition` are named convenience slots (`Ingredient`, not plain
+strings) for the recipe types that always have a small, fixed set of named ingredients rather than
+an open list: `smithing_transform`/`smithing_trim` (all three), `crafting_transmute`/
+`crafting_dye`/`crafting_imbue` (base/addition only). They duplicate what's already in
+`ingredients` - not a new source of truth, just named instead of positional, so a consumer doesn't
+have to know "index 2 means addition for this specific type." Kept as full `Ingredient` objects
+rather than flattened to a name: checked first whether that would lose anything, and it would -
+every one of `smithing_transform`'s 12 real recipes has a tag (not a plain item) in its `addition`
+slot (`netherite_tool_materials`), which a plain string couldn't represent.
+
 ### Bedrock Edition
 
 Recipes only, on purpose - not a first pass at "everything," a deliberate scope limit after

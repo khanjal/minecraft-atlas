@@ -82,9 +82,10 @@ async function resolveShapedIngredients(
 ): Promise<Ingredient[]> {
     const flat = pattern.join('');
     const symbols = Object.keys(key);
-    return Promise.all(symbols.map(symbol => {
+    return Promise.all(symbols.map(async symbol => {
         const quantity = flat.split(symbol).length - 1;
-        return resolveIngredient(version, key[symbol], quantity);
+        const ingredient = await resolveIngredient(version, key[symbol], quantity);
+        return { ...ingredient, symbol };
     }));
 }
 
@@ -160,29 +161,27 @@ export async function parseRecipe(version: string, name: string, raw: any): Prom
                 ingredients: [await resolveIngredient(version, raw.ingredient, 1)],
             };
 
-        case 'smithing_transform':
-            return {
-                id, type, result,
-                ingredients: await Promise.all([
-                    resolveIngredient(version, raw.template, 1),
-                    resolveIngredient(version, raw.base, 1),
-                    resolveIngredient(version, raw.addition, 1),
-                ]),
-            };
+        case 'smithing_transform': {
+            const [template, base, addition] = await Promise.all([
+                resolveIngredient(version, raw.template, 1),
+                resolveIngredient(version, raw.base, 1),
+                resolveIngredient(version, raw.addition, 1),
+            ]);
+            return { id, type, result, ingredients: [template, base, addition], template, base, addition };
+        }
 
-        case 'smithing_trim':
+        case 'smithing_trim': {
             // Applies a trim pattern to the base armor piece rather than producing a new item -
             // result is genuinely null here, not a parsing gap. (The original pipeline dropped
             // this recipe type entirely, since its "has no result -> discard" filter caught it as
             // a side effect; this is a deliberate improvement, not just a port.)
-            return {
-                id, type, result: null,
-                ingredients: await Promise.all([
-                    resolveIngredient(version, raw.template, 1),
-                    resolveIngredient(version, raw.base, 1),
-                    resolveIngredient(version, raw.addition, 1),
-                ]),
-            };
+            const [template, base, addition] = await Promise.all([
+                resolveIngredient(version, raw.template, 1),
+                resolveIngredient(version, raw.base, 1),
+                resolveIngredient(version, raw.addition, 1),
+            ]);
+            return { id, type, result: null, ingredients: [template, base, addition], template, base, addition };
+        }
 
         case 'crafting_special_bannerduplicate':
             return {
@@ -190,39 +189,38 @@ export async function parseRecipe(version: string, name: string, raw: any): Prom
                 ingredients: [await resolveIngredient(version, raw.banner, 1)],
             };
 
-        case 'crafting_transmute':
+        case 'crafting_transmute': {
             // 1.21.2+: one item (input) transformed by a second (material) into a differently-
-            // flavoured version of itself - e.g. bundle + dye -> that colour of bundle.
-            return {
-                id, type, group: raw.group, result,
-                ingredients: await Promise.all([
-                    resolveIngredient(version, raw.input, 1),
-                    resolveIngredient(version, raw.material, 1),
-                ]),
-            };
+            // flavoured version of itself - e.g. bundle + dye -> that colour of bundle. Named
+            // base/addition here for consistency with the other two-slot "flavour" types below,
+            // even though Mojang's own field names are input/material, not base/addition.
+            const [base, addition] = await Promise.all([
+                resolveIngredient(version, raw.input, 1),
+                resolveIngredient(version, raw.material, 1),
+            ]);
+            return { id, type, group: raw.group, result, ingredients: [base, addition], base, addition };
+        }
 
-        case 'crafting_dye':
+        case 'crafting_dye': {
             // 1.21.6+: dyeing leather/wolf armor. The old pipeline only read `target` and
             // silently dropped `dye` (no field access to it at all, not a filtered-out choice) -
             // included properly here.
-            return {
-                id, type, group: raw.group, result,
-                ingredients: await Promise.all([
-                    resolveIngredient(version, raw.target, 1),
-                    resolveIngredient(version, raw.dye, 1),
-                ]),
-            };
+            const [base, addition] = await Promise.all([
+                resolveIngredient(version, raw.target, 1),
+                resolveIngredient(version, raw.dye, 1),
+            ]);
+            return { id, type, group: raw.group, result, ingredients: [base, addition], base, addition };
+        }
 
-        case 'crafting_imbue':
+        case 'crafting_imbue': {
             // Crafting-table tipped arrows: a base item flavoured by a "source" - e.g.
             // arrow + lingering potion -> 8 tipped arrows.
-            return {
-                id, type, result,
-                ingredients: await Promise.all([
-                    resolveIngredient(version, raw.material, 1),
-                    resolveIngredient(version, raw.source, 1),
-                ]),
-            };
+            const [base, addition] = await Promise.all([
+                resolveIngredient(version, raw.material, 1),
+                resolveIngredient(version, raw.source, 1),
+            ]);
+            return { id, type, result, ingredients: [base, addition], base, addition };
+        }
 
         case 'crafting_special_bookcloning':
             return {
