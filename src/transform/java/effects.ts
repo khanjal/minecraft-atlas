@@ -5,8 +5,8 @@
 // registry id Mojang actually uses ("minecraft:mining_fatigue"). Converted here rather than
 // carried through, so every model in this project is namespaced the same real way.
 
-import { fetchEffects, RawEffect } from '../sources/minecraft-data';
-import { Effect } from '../models/effect.model';
+import { fetchEffects, RawEffect } from '../../sources/java/minecraft-data';
+import { Effect } from '../../models/effect.model';
 
 function pascalToSnakeId(name: string): string {
     return `minecraft:${name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()}`;

@@ -12,6 +12,7 @@
     "generate": "ts-node scripts/generate.ts",
     "generate:recipes": "ts-node scripts/generateRecipes.ts",
     "generate:base": "ts-node scripts/generateBase.ts",
+    "generate:bedrock-recipes": "ts-node scripts/generateBedrockRecipes.ts",
     "test": "node --require ts-node/register --test \"src/**/*.test.ts\""
   },
   "license": "MIT",

@@ -10,12 +10,12 @@ async function main(): Promise<void> {
     const snapshot = await buildSnapshot(version);
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
-    const outDir = path.join(__dirname, '..', 'data', version);
+    const outDir = path.join(__dirname, '..', 'data', 'java', version);
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'snapshot.json'), JSON.stringify(snapshot, null, 2));
 
     console.log(
-        `Wrote data/${version}/snapshot.json (${seconds}s): ` +
+        `Wrote data/java/${version}/snapshot.json (${seconds}s): ` +
         `${snapshot.items.length} items, ${snapshot.entities.length} entities, ` +
         `${snapshot.effects.length} effects, ${snapshot.enchantments.length} enchantments, ` +
         `${snapshot.recipes.length} recipes`

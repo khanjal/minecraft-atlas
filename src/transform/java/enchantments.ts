@@ -1,8 +1,8 @@
 // Converts a minecraft-data enchantment entry into this project's Enchantment shape.
 
-import { fetchEnchantments, RawEnchantment } from '../sources/minecraft-data';
-import { namespaced } from '../util/id';
-import { Enchantment } from '../models/enchantment.model';
+import { fetchEnchantments, RawEnchantment } from '../../sources/java/minecraft-data';
+import { namespaced } from '../../util/id';
+import { Enchantment } from '../../models/enchantment.model';
 
 export function parseEnchantment(raw: RawEnchantment): Enchantment {
     return {

@@ -2,12 +2,18 @@
 // a consumer that just wants "everything for this Minecraft version" - merge/overlay.ts and
 // diff/coverageReport.ts stay separate exports rather than part of this, since both need a
 // consumer's own curated data as an argument and can't be produced from a version string alone.
+//
+// Java only for now: Bedrock only has a complete public source for recipes (see
+// transform/bedrock/recipes.ts's header) - no equivalent items/entities/effects/enchantments
+// source exists yet, so there's nothing to build a full Bedrock Snapshot from. buildBedrockRecipes
+// stays a standalone export for that reason rather than an edition parameter here that would only
+// half-work.
 
-import { buildItems } from '../transform/items';
-import { buildEntities } from '../transform/entities';
-import { buildEffects } from '../transform/effects';
-import { buildEnchantments } from '../transform/enchantments';
-import { buildRecipes } from '../transform/recipes';
+import { buildItems } from '../transform/java/items';
+import { buildEntities } from '../transform/java/entities';
+import { buildEffects } from '../transform/java/effects';
+import { buildEnchantments } from '../transform/java/enchantments';
+import { buildRecipes } from '../transform/java/recipes';
 import { Snapshot } from '../models/snapshot.model';
 
 export async function buildSnapshot(minecraftVersion: string): Promise<Snapshot> {

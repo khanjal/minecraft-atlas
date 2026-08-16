@@ -1,8 +1,8 @@
 // Converts a minecraft-data item entry into this project's Item shape.
 
-import { fetchItems, RawItem } from '../sources/minecraft-data';
-import { namespaced } from '../util/id';
-import { Item } from '../models/item.model';
+import { fetchItems, RawItem } from '../../sources/java/minecraft-data';
+import { namespaced } from '../../util/id';
+import { Item } from '../../models/item.model';
 
 export function parseItem(raw: RawItem): Item {
     return {

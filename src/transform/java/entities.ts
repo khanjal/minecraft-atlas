@@ -1,8 +1,8 @@
 // Converts a minecraft-data entity entry into this project's Entity shape.
 
-import { fetchEntities, RawEntity } from '../sources/minecraft-data';
-import { namespaced } from '../util/id';
-import { Entity } from '../models/entity.model';
+import { fetchEntities, RawEntity } from '../../sources/java/minecraft-data';
+import { namespaced } from '../../util/id';
+import { Entity } from '../../models/entity.model';
 
 export function parseEntity(raw: RawEntity): Entity {
     return {

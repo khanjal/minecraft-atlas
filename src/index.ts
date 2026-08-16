@@ -5,11 +5,12 @@ export { buildSnapshot } from './schema/public';
 export { overlay } from './merge/overlay';
 export { buildCoverageReport } from './diff/coverageReport';
 
-export { buildItems } from './transform/items';
-export { buildEntities } from './transform/entities';
-export { buildEffects } from './transform/effects';
-export { buildEnchantments } from './transform/enchantments';
-export { buildRecipes } from './transform/recipes';
+export { buildItems } from './transform/java/items';
+export { buildEntities } from './transform/java/entities';
+export { buildEffects } from './transform/java/effects';
+export { buildEnchantments } from './transform/java/enchantments';
+export { buildRecipes } from './transform/java/recipes';
+export { buildBedrockRecipes } from './transform/bedrock/recipes';
 
 export type { Item } from './models/item.model';
 export type { Entity } from './models/entity.model';

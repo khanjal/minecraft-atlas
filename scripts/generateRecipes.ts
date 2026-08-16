@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { buildRecipes } from '../src/transform/recipes';
+import { buildRecipes } from '../src/transform/java/recipes';
 
 async function main(): Promise<void> {
     const version = process.argv[2] || '26.1';
@@ -10,11 +10,11 @@ async function main(): Promise<void> {
     const recipes = await buildRecipes(version);
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
-    const outDir = path.join(__dirname, '..', 'data', version);
+    const outDir = path.join(__dirname, '..', 'data', 'java', version);
     fs.mkdirSync(outDir, { recursive: true });
     fs.writeFileSync(path.join(outDir, 'recipes.json'), JSON.stringify(recipes, null, 2));
 
-    console.log(`Wrote ${recipes.length} recipes to data/${version}/recipes.json (${seconds}s)`);
+    console.log(`Wrote ${recipes.length} recipes to data/java/${version}/recipes.json (${seconds}s)`);
 }
 
 main().catch(err => {

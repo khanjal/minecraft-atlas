@@ -1,5 +1,5 @@
-import { fetchTag } from '../sources/mcmeta';
-import { namespaced } from '../util/id';
+import { fetchTag } from '../../sources/java/mcmeta';
+import { namespaced } from '../../util/id';
 
 // Recursively resolves a tag id (e.g. "minecraft:planks") to its full list of concrete item ids,
 // via mcmeta's data/minecraft/tags/item/*.json. Tag files can reference other tags (a value

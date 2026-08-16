@@ -35,12 +35,12 @@
 // pipeline hand-authored a static potion table instead of parsing one. That's curated content,
 // not a parse-a-source problem, so it belongs in merge/ against a real potion-effect list, not here.
 
-import { fetchRecipe, listRecipeFiles, recipeNameFromPath } from '../sources/mcmeta';
-import { mapWithConcurrency } from '../util/concurrency';
-import { namespaced } from '../util/id';
+import { fetchRecipe, listRecipeFiles, recipeNameFromPath } from '../../sources/java/mcmeta';
+import { mapWithConcurrency } from '../../util/concurrency';
+import { namespaced } from '../../util/id';
 import { resolveTag } from './tags';
-import { Recipe } from '../models/recipe.model';
-import { Ingredient } from '../models/ingredient.model';
+import { Recipe } from '../../models/recipe.model';
+import { Ingredient } from '../../models/ingredient.model';
 
 type RawIngredientSpec = string | { item?: string; tag?: string } | RawIngredientSpec[];
 

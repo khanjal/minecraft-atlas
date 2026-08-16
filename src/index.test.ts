@@ -6,6 +6,7 @@ test('the public barrel exports every function a consumer needs', () => {
     const expectedFunctions = [
         'buildSnapshot', 'overlay', 'buildCoverageReport',
         'buildItems', 'buildEntities', 'buildEffects', 'buildEnchantments', 'buildRecipes',
+        'buildBedrockRecipes',
     ];
     for (const name of expectedFunctions) {
         assert.equal(typeof (atlas as Record<string, unknown>)[name], 'function', `expected ${name} to be an exported function`);
