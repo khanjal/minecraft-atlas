@@ -1,5 +1,7 @@
 # minecraft-atlas
 
+[![CI](https://github.com/khanjal/minecraft-atlas/actions/workflows/ci.yml/badge.svg)](https://github.com/khanjal/minecraft-atlas/actions/workflows/ci.yml)
+
 Merged, versioned Minecraft data — items, entities, recipes, effects, enchantments, blocks,
 biomes, structures, for both Java and Bedrock Edition — assembled from official/community upstream
 sources instead of hand-vendored, plus a curated overlay for the parts no public source has.
@@ -54,7 +56,10 @@ network, including a regression test for the shorthand-tag-reference bug found a
 stripper Bedrock entities need, see below) has its own tests for the case that matters most: a `//`
 that appears inside a real string value must not be treated as a comment. Before this, every parser
 was only ever verified via live network calls against real data during development - real
-confidence, but slow, network-dependent, and nothing a CI run could rely on.
+confidence, but slow, network-dependent, and nothing a CI run could rely on. GitHub Actions
+(`.github/workflows/ci.yml`) now runs `tsc --noEmit`, `npm test`, and `npm run build` on every push
+and pull request against master, on Node 18/20/22, since the fully-offline suite makes that cheap
+and fast to actually gate on.
 
 ## Why
 
