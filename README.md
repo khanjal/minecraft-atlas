@@ -58,8 +58,11 @@ that appears inside a real string value must not be treated as a comment. Before
 was only ever verified via live network calls against real data during development - real
 confidence, but slow, network-dependent, and nothing a CI run could rely on. GitHub Actions
 (`.github/workflows/ci.yml`) now runs `tsc --noEmit`, `npm test`, and `npm run build` on every push
-and pull request against master, on Node 18/20/22, since the fully-offline suite makes that cheap
-and fast to actually gate on.
+and pull request against master, on Node 20/22, since the fully-offline suite makes that cheap and
+fast to actually gate on. Node 18 was tried first and dropped, not skipped by default: its built-in
+test runner doesn't resolve the recursive `"src/**/*.test.ts"` glob `npm test` uses the same way
+20/22 do (`Could not find '.../src/**/*.test.ts'`, confirmed against a real failed run), and 18 is
+already past its own end-of-life besides.
 
 ## Why
 
