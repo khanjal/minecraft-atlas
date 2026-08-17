@@ -43,7 +43,7 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 ### Tests
 
-`npm test` runs 73 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~2s, fully offline.
+`npm test` runs 90 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
 Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`, both Java and Bedrock
 `recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the generic
 `match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
@@ -116,12 +116,18 @@ src/
       entities.ts          parses every bedrock-samples entity file - id/category/family/
                            width/height only, no displayName (genuinely unavailable) [done]
   display/
-    itemSymbols.ts        hand-picked symbol+colour identity data (~180 items/blocks) and the real
-                          dye/copper-oxidation/potion-effect colour tables - ported from Craft
-                          Helper (github.com/khanjal/Craft-Helper/issues/3) [done]
-    resolveItemSymbol.ts   resolveItemSymbol(name, usedSoFar) - reserved match, then colour-family
-                          match, then a deterministic name-derived hash fallback that avoids
-                          colliding with what's already assigned [done]
+    itemSymbols.ts        hand-picked symbol+colour identity (~180 items/blocks, ported from Craft
+                          Helper) plus real family tables: dye, copper-oxidation, potion-effect,
+                          ore-mineral, coral-type, wood-species/leaf, tool-material-tier, and the
+                          "Block of X" Mojang-rename aliases [done]
+    resolveItemSymbol.ts   resolveItemSymbol(name, usedSoFar) - reserved match, then each colour
+                          family in turn, then a deterministic name-derived hash fallback that
+                          avoids colliding with what's already assigned - see "Item/block/entity
+                          display symbols" below for the real ~60% coverage this achieves [done]
+    entitySymbols.ts       real category->colour tables for Java's minecraft-data `type` field and
+                          Bedrock's `spawn_category`/`family` fields [done]
+    resolveEntitySymbol.ts  resolveEntitySymbol(entity, usedSoFar) - same fixed-then-hash shape as
+                          items, matched on structured category fields instead of a name [done]
   merge/
     overlay.ts           joins a consumer's curated records onto base-layer records by name [done]
   diff/
@@ -320,26 +326,87 @@ and gets back either a join (`overlay`) or a gap report (`coverageReport`). This
 here, generically; the *data* (and whatever eventually reads the sheet into that shape) stays
 wherever Craft Helper's own pipeline lives.
 
-### Item/block display symbols
+### Item/block/entity display symbols
 
-`display/` holds real item/block visual-identity data (a symbol+colour per name) ported wholesale
-from Craft Helper's `lambda/helpers/itemSymbols.ts` and `recipeGridHelpers.ts`
-([khanjal/Craft-Helper#3](https://github.com/khanjal/Craft-Helper/issues/3)): this wasn't
-Craft-Helper-specific in what it represents (a diamond's shape, the real Mojang dye/potion/copper-
-oxidation colours), only in where it used to live, so any consumer building a visual multi-item
-display (not just Craft Helper's Alexa recipe-grid screen) can use it. `resolveItemSymbol(name,
-usedSoFar)` resolves, in order: a hand-picked reserved match (~180 items), a colour-family match
-(dye/copper/potion families), then a deterministic name-derived hash that walks forward through an
-8-shape x 8-colour space to avoid colliding with whatever's already in `usedSoFar` - the exact same
-three-tier resolution Craft Helper's recipe-grid rendering already used, just relocated. What stayed
-behind in Craft Helper: the Alexa-APL screen layout constants (cell backgrounds, the arrow/result
-cell styling) and the grid/legend assembly logic itself (`BuildSymbolMap`, `BuildRecipeGrid`, ...) -
-those are genuinely specific to that one screen, not general item data.
+`display/` holds real visual-identity data (a symbol+colour per name) - it started as a wholesale
+port of Craft Helper's `lambda/helpers/itemSymbols.ts` and `recipeGridHelpers.ts`
+([khanjal/Craft-Helper#3](https://github.com/khanjal/Craft-Helper/issues/3)) scoped to what that one
+screen needed (~180 items that actually appear as recipe ingredients), then expanded to cover items,
+blocks, and entities generally - a different, harder problem, described honestly below rather than
+overclaimed.
 
-Verified as a real port, not just a faithful-looking rewrite: before touching Craft Helper's code, a
-snapshot script rendered every one of the 1,139 real, griddable 26.2 recipes' full symbol map, grid,
-and legend using the original code; after wiring Craft Helper to consume this module instead, the
-same script produced **byte-identical output** across all 1,139 recipes.
+**What "full catalog coverage" actually means at this scale.** The original ~180-entry
+`RESERVED_SYMBOLS` list works because every entry has something real to check it against: does this
+item collide with another reserved item in an actual recipe. Only ~250-300 names ever appear as a
+recipe ingredient at all. Java 26.1's real item+block catalog is 1,590 unique names; adding entities
+brings the real total past 1,850. Writing individually-verified, collision-checked reasoning for
+every one of those - the way each `RESERVED_SYMBOLS` entry has - isn't achievable honestly at that
+scale: most of these names never appear together anywhere, so there's no real collision to verify
+against, and inventing one per item would be fabrication, not curation. So this expansion is a
+**family system**, not a bigger flat list: real, verified shared-substance/category rules (the same
+pattern the original port already used for dye/copper/potion families), applied broadly:
+
+- **Item/block families added**: full 16-colour coverage for concrete, concrete powder, glazed
+  terracotta, candle, shulker box, and bundle (the last two were genuinely missing from the original
+  port, found while auditing coverage - `bundle` in particular was a real gap, not a deliberate
+  exclusion). An ore family (18 names: coal/copper/diamond/emerald/gold/iron/lapis/redstone/quartz,
+  each stone- or deepslate-muted from that mineral's own reserved colour). A coral family (40 names:
+  5 real types x plant/block/fan forms, alive and bleached-grey dead). A wood-form family covering
+  every real per-species form beyond planks/log/boat (leaves, signs, doors, fences, buttons,
+  pressure plates, saplings, shelves, and each nether-wood/bamboo species' own real form set -
+  fungus/roots/hyphae/nylium for crimson/warped, mosaic/shoot/raft for bamboo - real per-species
+  wood and foliage tones, not the same "planks" identity for every species this system used before).
+  A tool/armour material-tier family (wooden/stone/leather/chainmail/iron/copper/golden/netherite -
+  diamond excluded, already covered per-piece). A "Block of X" alias table for Mojang's real rename
+  (confirmed live: minecraft-data's current `displayName` says "Block of Iron", not "Iron Block" -
+  Craft Helper's own cleaned pipeline still emits the pre-rename order, which is why
+  `RESERVED_SYMBOLS` kept the old keys, but a consumer working from this project's own unprocessed
+  `Item.displayName` needs both forms to resolve to the same identity).
+- **A real bug found and fixed along the way**: the wood-species boat fold only matched
+  `name.endsWith('boat')`, silently missing every real "X boat with chest" name (9 across all wood
+  species use exactly that phrasing, not "X chest boat" as the original comment assumed) - the fold
+  now strips a trailing " with chest" first.
+- **Entities**: a different shape of problem again - matched by real category field
+  (`resolveEntitySymbol`/`resolveEntityFixedSymbol`, `display/resolveEntitySymbol.ts`), not by name,
+  since there's no per-entity equivalent of "hand-verify against a real recipe collision" and ~300
+  entities is too many to fabricate individual colours for. Java's real `type` field and Bedrock's
+  real `spawn_category`/`family` fields each get a genuine, verified mapping (hostile -> red,
+  animal/passive/creature -> green, water_creature -> blue, ambient -> pale, projectile -> the
+  arrow item's own reserved grey, player -> gold) - Java's "other"/"mob" and Bedrock's "misc" are
+  each left unmapped on purpose, since those are real, confirmed catch-all buckets in the source
+  data itself (boats, area_effect_cloud, ender_dragon, xp_orb, ...) with no coherent shared identity
+  to assign.
+- **The fallback pool itself got wider too**: `DISPLAY_SYMBOLS` grew from 8 to 14 by promoting six
+  glyphs (▬▭▮▯◈◐) that were already rendering in production via `RESERVED_SYMBOLS` - zero new
+  device-rendering risk, since real recipes already display them today. `SYMBOL_COLORS` doubled from
+  8 to 16 (plain hex, no rendering risk at all). Four genuinely new, never-rendered glyphs
+  (`PROVISIONAL_DISPLAY_SYMBOLS`: ◉◎⬟⬢) are defined but deliberately excluded from the default pool
+  - `resolveHashedSymbol` takes an optional explicit pool parameter for a caller that's confirmed
+  they render correctly on their target device; nothing opts in by default.
+
+**Honest, measured results** (checked live against real 26.1 Java data and real v1.26.40.05 Bedrock
+data, not estimated): **59.9%** of the real 1,590 unique Java item+block names now resolve through a
+real, verified rule rather than the hash fallback (up from ~11% before this pass, when only the
+original ~180-entry recipe-grid list existed). **64.3%** of Java's 157 real entities and **74.0%** of
+Bedrock's 127 real entities resolve through a real category rule. Every name still gets *something*
+either way - `resolveItemSymbol`/`resolveEntitySymbol` always return a deterministic, collision-
+avoiding identity via the hash fallback - so "does every item/block/entity have a symbol and
+colour" is unconditionally true; "is that identity a deliberately verified one or a computed one" is
+true for roughly three-fifths of items/blocks and two-thirds to three-quarters of entities. What's
+left in the hash fallback and wasn't tackled this pass, in rough order of size: spawn eggs (93,
+real per-mob colours exist in the game but verifying and hand-entering ~90 without a fetchable
+source wasn't attempted), stone/mineral building-material forms - slab/stairs/wall/bricks across
+~20 base materials (~130 names, a real family the same shape as the wood one, just not built yet),
+pottery sherds (23, each depicts a distinct picture with no shared colour), banner patterns (10,
+same reasoning), and a long tail of individually unique blocks/items (anvil, beacon, barrel, ...)
+that never shared a family to begin with.
+
+**Verified as a real port, not just a faithful-looking rewrite**, for the original recipe-grid
+scope specifically: before touching Craft Helper's code, a snapshot script rendered every one of the
+1,139 real, griddable 26.2 recipes' full symbol map, grid, and legend using the original code; after
+wiring Craft Helper to consume this module instead, the same script produced **byte-identical
+output** across all 1,139 recipes. (Craft Helper hasn't yet been updated to pull in this session's
+further expansion - the byte-identical check reflects the initial port only.)
 
 ## Open questions
 

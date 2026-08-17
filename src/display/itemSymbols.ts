@@ -19,15 +19,39 @@ import { ItemSymbol } from '../models/item-symbol.model';
 // regenerate. Filled/outline pairs stay distinguishable if colour is lost (greyscale, colour
 // blindness, low-quality panel).
 //
-// Only 8 shapes - unlike colour (plain hex, no render risk), a new glyph's real-device rendering
-// can't be confirmed without a screenshot, and these 8 are the ones already confirmed against a
-// real Echo Show. Crossed with 8 colours that's 64 combos, comfortably more than any single recipe
-// could ever need (see RESERVED_SYMBOLS below for why 4 is the real ceiling) - collisions within
-// one recipe are still possible in principle (two different names hashing to the same slot), so
-// resolveHashedSymbol deterministically bumps to the next free slot rather than leaving two
-// ingredients looking identical.
-export const DISPLAY_SYMBOLS = ['●', '■', '▲', '◆', '★', '○', '◇', '▼'];
-export const SYMBOL_COLORS = ['#7fd4ff', '#ffcf5c', '#9ee37d', '#ff8fa3', '#c9a7ff', '#ffb072', '#7fe3d4', '#e0e5ee'];
+// Unlike colour (plain hex, no render risk), a new glyph's real-device rendering can't be
+// confirmed without a screenshot - the first 8 here are the ones confirmed against a real Echo
+// Show during Craft Helper's own development. The next 6 (▬▭▮▯◈◐) are also already live in
+// production, just via RESERVED_SYMBOLS rather than this hash pool - dozens of real recipes
+// (ingots, rods, chains, nuggets, potions, ...) already render them today, so folding them into
+// the general fallback pool too adds zero new rendering risk, only more variety. See
+// PROVISIONAL_DISPLAY_SYMBOLS below for glyphs that are genuinely new and NOT yet confirmed -
+// those are kept out of this pool on purpose.
+//
+// 14 shapes x 16 colours (SYMBOL_COLORS below) is 224 combos - comfortably more than any single
+// Java recipe could ever need (see RESERVED_SYMBOLS below for why 4 is the real ceiling for a
+// recipe-grid display), and enough headroom that a much larger display (an item list, not just one
+// recipe) still gets real variety before resolveHashedSymbol's collision-bump ever has to work
+// hard. Collisions within one display are still possible in principle (two different names hashing
+// to the same slot), so resolveHashedSymbol deterministically bumps to the next free slot rather
+// than leaving two items looking identical.
+export const DISPLAY_SYMBOLS = ['●', '■', '▲', '◆', '★', '○', '◇', '▼', '▬', '▭', '▮', '▯', '◈', '◐'];
+
+// Glyphs that look like they belong in the same family as DISPLAY_SYMBOLS (Geometric Shapes /
+// Miscellaneous Symbols, filled/outline pairs) but have never actually been rendered and confirmed
+// on a real Alexa device - kept deliberately separate from DISPLAY_SYMBOLS so nothing consuming
+// the default hash pool picks one up silently. A consumer that's confirmed these render correctly
+// can pass them explicitly to resolveHashedSymbol's pool parameter; until then this is a reference
+// list, not something live.
+export const PROVISIONAL_DISPLAY_SYMBOLS = ['◉', '◎', '⬟', '⬢'];
+
+export const SYMBOL_COLORS = [
+    '#7fd4ff', '#ffcf5c', '#9ee37d', '#ff8fa3', '#c9a7ff', '#ffb072', '#7fe3d4', '#e0e5ee',
+    // Second half added for full-catalog coverage (originally only 8, sized for one recipe's ~4
+    // ingredients) - eight more hues distinct from the originals and from each other, still plain
+    // hex, so no rendering-risk trade-off the way new glyphs have.
+    '#ff6b6b', '#4d96ff', '#b5e61d', '#e066ff', '#d2914d', '#2dd4bf', '#9ca3af', '#fff176',
+];
 
 // Hand-picked symbol/colour for the items where matching the real thing is worth doing by hand - an
 // ingot is a rectangle, a nether star is a pale star, not whatever a hash happens to land on.
@@ -621,14 +645,17 @@ export const DYE_COLORS: { name: string, color: string }[] = [
 ];
 
 // The "family" part of a colour-prefixed name ("purple wool" -> "wool") mapped to a shape shared by
-// every colour of that family. Not every 16-colour family is worth listing here - what matters is
-// whether the family ever shows up as an INGREDIENT in a crafting_shaped recipe, not whether its own
-// recipe is shaped: candle, candle cake, concrete powder, glazed terracotta and shulker box were all
-// checked against the real 26.2 data and never appear as anyone's ingredient, so a colour match for
-// them would never actually be seen and isn't included. Dye looked the same at first glance - its
-// own recipe (flower -> dye) is crafting_shapeless, so it seemed like the same case - but dye is
-// itself used as an ingredient in 48 shaped recipes (colouring stained glass, stained glass pane,
-// and terracotta), which is a real and common thing to see, so it's listed below.
+// every colour of that family. The first 10 entries below were originally scoped to recipe-grid
+// rendering only, where what mattered was whether the family ever shows up as an INGREDIENT in a
+// crafting_shaped recipe - candle, concrete powder, glazed terracotta, and shulker box were checked
+// against the real 26.2 data and never appear as anyone's ingredient, so they were left out. That
+// scoping doesn't apply to full item/block coverage: an item can need a real identity without ever
+// being a recipe ingredient, so concrete/concrete powder/glazed terracotta/candle/shulker box are
+// added below too (real, verified counts: 16 colours each except shulker box's 17th, undyed entry,
+// which isn't part of this colour-prefixed family and resolves through RESERVED_SYMBOLS/hash
+// instead). "Cake with <colour> candle" is a real but different naming pattern - the colour sits in
+// the middle of the name, not as a prefix - so those 16 names aren't matched here and fall through
+// to the hash fallback; a small, deliberately out-of-scope gap rather than an oversight.
 export const COLOR_FAMILY_SHAPES: Record<string, string> = {
     'wool': '■',
     'terracotta': '●',
@@ -643,6 +670,211 @@ export const COLOR_FAMILY_SHAPES: Record<string, string> = {
     // Reuses bed's shape - harness never appears in the same recipe as a bed, so there's no real
     // conflict, and both are "a coloured fabric item" in the same loose sense.
     'harness': '▬',
+    // Concrete is a solid, opaque block the same way wool/terracotta are - shares wool's shape.
+    'concrete': '■',
+    // The loose, uncompacted form of concrete - an outline diamond reads lighter/looser than the
+    // solid square its hardened form uses.
+    'concrete powder': '◇',
+    // A candle is genuinely rod-shaped - the same vertical bar its own single reserved 'candle'
+    // entry (RESERVED_SYMBOLS above) already uses for the undyed base candle.
+    'candle': '▮',
+    // A box, loosely - the outline bar distinguishes it from every filled/solid-block shape above.
+    'shulker box': '▯',
+    // A glossy-fired version of plain terracotta (its own filled circle above) - the filled diamond
+    // (stained glass's own shape) evokes that glazed sheen better than reusing the plain circle.
+    'glazed terracotta': '◆',
+    // Real 16-colour family, verified (16 real names) - genuinely missed in the original port, not
+    // deliberately excluded the way candle/concrete/etc. were. Reuses harness's own shape (both are
+    // "a coloured fabric container/accessory" in the same loose sense harness already reuses bed's
+    // shape for).
+    'bundle': '▬',
+};
+
+// A real Mojang rename ("Iron Block" -> "Block of Iron", etc. - the same rename family
+// diff/coverageReport.ts's heuristic already knows how to detect for a different purpose) shows up
+// directly in minecraft-data's current displayName field, confirmed by checking it live: 26.1's
+// real items.json has "Block of Iron", not "Iron Block". Craft Helper's own cleaned pipeline still
+// emits the pre-rename order (verified against its real bundled 26.2 items.json), which is why
+// RESERVED_SYMBOLS above still keys these under the old "iron block" form - but a consumer working
+// from minecraft-atlas's own buildItems/buildBlocks output directly (unprocessed displayName) would
+// see the new order and miss every one of these without this alias table. Reuses each mineral's
+// exact existing colour+shape rather than a new lookup, since it's the identical real item under a
+// different name - not a second, separate identity.
+export const MODERN_BLOCK_NAMES: Record<string, ItemSymbol> = {
+    'amethyst': { symbol: '◐', color: '#9d6fd9' },
+    'coal': { symbol: '■', color: '#5b6472' },
+    'copper': { symbol: '■', color: '#c87f4a' },
+    'diamond': { symbol: '■', color: '#4dd9ff' },
+    'emerald': { symbol: '■', color: '#3ecf6c' },
+    'gold': { symbol: '■', color: '#ffb703' },
+    'iron': { symbol: '■', color: '#c7ccd1' },
+    'lapis lazuli': { symbol: '■', color: '#2b4c9e' },
+    'netherite': { symbol: '■', color: '#544c53' },
+    'quartz': { symbol: '■', color: '#f0ece2' },
+    'raw copper': { symbol: '◐', color: '#d4823a' },
+    'raw gold': { symbol: '▭', color: '#e8c85a' },
+    'raw iron': { symbol: '▯', color: '#a89888' },
+    'redstone': { symbol: '■', color: '#ff5c5c' },
+    'resin': { symbol: '■', color: '#c9752f' },
+};
+
+// Every real Java ore block (verified: 18 names across coal/copper/diamond/emerald/gold/iron/
+// lapis lazuli/redstone/quartz, each as a plain and - except quartz - a deepslate variant) gets a
+// colour derived from that exact mineral's own RESERVED_SYMBOLS colour above, not a new invented
+// one: an ore block genuinely is that mineral suspended in stone, so its colour should read as
+// "that mineral, muted" rather than something unrelated. Computed once, offline, as a 45/55 blend
+// of the mineral's reserved colour with plain stone's own reserved tone (#7d7d78) for the surface
+// variant, or deepslate's (#3a3a3d) for the deepslate variant - then hardcoded here as a literal
+// hex like every other colour in this file, the same way every blended/derived tone elsewhere in
+// this project (e.g. the ore-region JSON hex conversions in transform/java/biomes.ts) is a stored
+// literal, not a runtime computation with its own rounding behaviour to reason about.
+export const ORE_COLORS: Record<string, { ore: string; deepslateOre: string }> = {
+    'coal': { ore: '#6e7275', deepslateOre: '#494d55' },
+    'copper': { ore: '#9f7e63', deepslateOre: '#7a5943' },
+    'diamond': { ore: '#67a6b5', deepslateOre: '#438294' },
+    'emerald': { ore: '#61a273', deepslateOre: '#3c7d52' },
+    'gold': { ore: '#b89743', deepslateOre: '#937223' },
+    'iron': { ore: '#9ea1a0', deepslateOre: '#797c80' },
+    'lapis lazuli': { ore: '#586789', deepslateOre: '#334269' },
+    'redstone': { ore: '#b86e6b', deepslateOre: '#93494b' },
+    // No deepslate quartz ore exists in the real game - quartz only ever generates in the Nether,
+    // named "nether quartz ore" rather than a stone/deepslate pair the way the other eight are.
+    // deepslateOre is unused for this one entry, kept only so every mineral shares one type shape.
+    'quartz': { ore: '#b1afa8', deepslateOre: '#b1afa8' },
+};
+
+// Real Minecraft's five coral types, their real in-game hues (the same tones the block/fan/plant
+// textures actually render). Verified count: 40 real names total (5 types x 4 forms x alive/dead) -
+// "<type> coral", "<type> coral block", "<type> coral fan", "<type> coral wall fan", each with a
+// "dead <type> coral..." counterpart that's bone-grey regardless of type (DEAD_CORAL_COLOR below),
+// matching how bleached coral genuinely loses all colour in the real game.
+export const CORAL_COLORS: Record<string, string> = {
+    'tube': '#3a8ee0',
+    'brain': '#e893c1',
+    'bubble': '#b93bd1',
+    'fire': '#e0402a',
+    'horn': '#e0c22a',
+};
+export const DEAD_CORAL_COLOR = '#8f7f76';
+
+// Real per-species wood tone, approximating each species' actual in-game colour (oak's matches the
+// existing flat 'planks' RESERVED_SYMBOLS entry above, for consistency between the two systems).
+// Used for every wood-species form EXCEPT the "growing part" forms (leaves/sapling/fungus/roots/
+// shoot - WOOD_LEAF_COLORS below) - a door, sign, fence, or shelf is the wood grain colour; foliage
+// isn't. Deliberately doesn't cover planks/log/stripped-log/wood/boat/raft/stem - those already
+// have their own flat, single-colour identity (RESERVED_SYMBOLS' 'planks'/'log'/'stripped log', and
+// canonicalizeName's boat fold) verified byte-identical against real Craft Helper recipe-grid
+// output; extending them to per-species colours here would change live rendering behaviour that's
+// already confirmed correct, for no real gain in the one context (a single recipe) that behaviour
+// was built for.
+export const WOOD_SPECIES_COLORS: Record<string, string> = {
+    'oak': '#c9976b',
+    'spruce': '#7a4a2e',
+    'birch': '#e8d9a0',
+    'jungle': '#b97a4f',
+    'acacia': '#ba6337',
+    'dark oak': '#4a3728',
+    'mangrove': '#8f3a2e',
+    'cherry': '#e8b4c8',
+    'bamboo': '#c9b23a',
+    'crimson': '#8f2233',
+    'warped': '#2a8f8a',
+    'pale oak': '#d9d3c0',
+};
+
+// The real, distinct colour of each species' foliage/growing part - most are shades of green,
+// cherry is famously pink-blossomed, crimson/warped's fungus caps and bamboo's shoot reuse their
+// own species' wood tone above since those particular growths genuinely are that same hue in-game
+// (a crimson fungus cap is the same deep red as crimson wood, not a separate green).
+export const WOOD_LEAF_COLORS: Record<string, string> = {
+    'oak': '#4a7a2e',
+    'spruce': '#2e5a2e',
+    'birch': '#6a9a4a',
+    'jungle': '#3a8a3a',
+    'acacia': '#7a9a3a',
+    'dark oak': '#3a5a2a',
+    'mangrove': '#4a7a3a',
+    'cherry': '#f4c2d7',
+    'bamboo': '#8fc73e',
+    'crimson': '#8f2233',
+    'warped': '#2a8f8a',
+    'pale oak': '#c9d9c0',
+};
+
+// Every real wood-species form NOT already covered by canonicalizeName's planks/log/boat fold
+// (verified against the real 26.2 catalog per species - the exact set varies: standard trees have
+// leaves/sapling, crimson/warped have fungus/roots/hyphae/nylium instead, bamboo has shoot/mosaic
+// instead of leaves/log). Mapped to a shape shared across every species - the colour (species wood
+// tone or leaf tone, WOOD_FORM_IS_GROWTH below) is what actually distinguishes one species from
+// another.
+export const WOOD_FORM_SHAPES: Record<string, string> = {
+    'leaves': '○',
+    'sign': '▭',
+    'hanging sign': '▭',
+    'door': '▯',
+    'trapdoor': '▯',
+    'fence': '▮',
+    'fence gate': '▮',
+    'button': '▬',
+    'pressure plate': '▬',
+    'sapling': '★',
+    'shoot': '★',
+    'fungus': '★',
+    'roots': '★',
+    'shelf': '◇',
+    'hyphae': '■',
+    'nylium': '■',
+    'mosaic': '■',
+    'mosaic slab': '■',
+    'mosaic stairs': '■',
+    // The full-bark storage-block form (distinct from 'log', which canonicalizeName's existing
+    // fold already handles) - not folded into that flat identity since 'wood' was never covered by
+    // the original recipe-grid-only system at all (falls to hash either way, no verified behaviour
+    // to preserve), so it's safe to give it a real per-species colour here instead.
+    'wood': '■',
+    // Cut planks - same substance as planks, same shape.
+    'slab': '■',
+    'stairs': '■',
+};
+
+// Which of WOOD_FORM_SHAPES' forms are "the growing/living part" of the species (foliage or
+// fungus), and so should use WOOD_LEAF_COLORS rather than the wood-grain WOOD_SPECIES_COLORS.
+export const WOOD_FORM_IS_GROWTH = new Set(['leaves', 'sapling', 'shoot', 'fungus', 'roots']);
+
+// Every real tool/armour material tier except diamond, which already has its own individual
+// RESERVED_SYMBOLS entry per piece above (twelve real recipes make diamond tools/armour the base
+// ingredient for a netherite upgrade, so each already needed its own entry regardless of this
+// table). Colour reuses that exact material's own existing reserved colour where one exists
+// (wooden -> planks' tan, stone -> stone's grey, iron/copper/golden/netherite -> their own ingot
+// colours, leather -> leather's own colour) so a tool and its raw material always read as the same
+// substance; chainmail and copper are the two with no pre-existing reserved colour of their own,
+// given real, distinct tones here.
+export const MATERIAL_TIER_COLORS: Record<string, string> = {
+    'wooden': '#c9976b',
+    'stone': '#7d7d78',
+    'leather': '#935c34',
+    'chainmail': '#8a8f99',
+    'iron': '#c7ccd1',
+    'copper': '#c87f4a',
+    'golden': '#ffb703',
+    'netherite': '#544c53',
+};
+
+// Shape per real tool/armour piece type - reuses the same bar/rectangle language ingots and other
+// reserved metal items already use, so a material tier's tools/armour visually read as "made of
+// that substance" rather than getting an arbitrary new glyph per object type.
+export const MATERIAL_TIER_ITEM_SHAPES: Record<string, string> = {
+    'axe': '▬',
+    'hoe': '▬',
+    'pickaxe': '▬',
+    'shovel': '▬',
+    'sword': '◆',
+    'spear': '▮',
+    'helmet': '▯',
+    'chestplate': '▯',
+    'leggings': '▯',
+    'boots': '▯',
+    'horse armor': '▯',
 };
 
 // Copper's four real oxidation stages, in order from freshest to most weathered. The base stage

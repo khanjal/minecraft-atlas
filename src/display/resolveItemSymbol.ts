@@ -9,7 +9,9 @@
 import { ItemSymbol } from '../models/item-symbol.model';
 import {
     DISPLAY_SYMBOLS, SYMBOL_COLORS, RESERVED_SYMBOLS, DYE_COLORS, COLOR_FAMILY_SHAPES,
-    COPPER_OXIDATION_COLORS, COPPER_FORMS, POTION_EFFECT_COLORS, POTION_BASE_COLORS,
+    COPPER_OXIDATION_COLORS, COPPER_FORMS, POTION_EFFECT_COLORS, POTION_BASE_COLORS, ORE_COLORS,
+    CORAL_COLORS, DEAD_CORAL_COLOR, WOOD_SPECIES_COLORS, WOOD_LEAF_COLORS, WOOD_FORM_SHAPES,
+    WOOD_FORM_IS_GROWTH, MATERIAL_TIER_COLORS, MATERIAL_TIER_ITEM_SHAPES, MODERN_BLOCK_NAMES,
     PALE_BRIGHTNESS_THRESHOLD,
 } from './itemSymbols';
 
@@ -37,8 +39,12 @@ export function canonicalizeName(name: string): string {
     }
 
     // Bamboo's own boat-equivalent is called a "raft," not a "boat" - same vehicle, same recipe
-    // shape ("bamboo chest raft" <- [chest, bamboo raft], identical to every "X chest boat").
-    if (name.endsWith('boat') || name.endsWith('raft')) {
+    // shape. The chest variant is named "X boat with chest" / "X raft with chest" in the real
+    // catalog (not "X chest boat" as originally assumed here - found while extending wood coverage
+    // beyond just planks/log/boat: "oak boat with chest" was silently missing this fold entirely,
+    // 9 real chest-boat names across every species affected), so that suffix is stripped first.
+    const withoutChest = name.endsWith(' with chest') ? name.slice(0, -' with chest'.length) : name;
+    if (withoutChest.endsWith('boat') || withoutChest.endsWith('raft')) {
         return 'boat';
     }
 
@@ -150,6 +156,118 @@ function getPotionFamilyMatch(name: string): ItemSymbol | undefined {
     return undefined;
 }
 
+// Real Java ore blocks (verified: 18 names, see ORE_COLORS) - "<mineral> ore", "deepslate
+// <mineral> ore", or (quartz/gold's real exception) "nether <mineral> ore". A stone-block shape,
+// since that's what an ore block fundamentally is, in a colour derived from the real mineral it
+// contains rather than an unrelated hashed one.
+function getOreFamilyMatch(name: string): ItemSymbol | undefined {
+    const stripped = name.startsWith('deepslate ') ? name.slice(10)
+        : name.startsWith('nether ') ? name.slice(7)
+        : name;
+
+    if (!stripped.endsWith(' ore')) {
+        return undefined;
+    }
+
+    const mineral = stripped.slice(0, -' ore'.length);
+    const colors = ORE_COLORS[mineral];
+
+    if (!colors) {
+        return undefined;
+    }
+
+    const color = name.startsWith('deepslate ') ? colors.deepslateOre : colors.ore;
+    return { symbol: '■', color };
+}
+
+// Real coral names (verified: 40 total, see CORAL_COLORS) - "<type> coral", "<type> coral block",
+// "<type> coral fan"/"<type> coral wall fan" (fan and wall fan share one identity - the same fan
+// object, freestanding or wall-mounted), each optionally "dead " prefixed for the real bleached-grey
+// variant. A different shape per real object type: the loose plant (a small polyp cluster), the
+// solid block, and the branching fan.
+function getCoralFamilyMatch(name: string): ItemSymbol | undefined {
+    const isDead = name.startsWith('dead ');
+    const stripped = isDead ? name.slice(5) : name;
+
+    for (const type of Object.keys(CORAL_COLORS)) {
+        if (!stripped.startsWith(type + ' coral')) {
+            continue;
+        }
+
+        const form = stripped.slice((type + ' coral').length);
+        const color = isDead ? DEAD_CORAL_COLOR : CORAL_COLORS[type];
+
+        if (form === '') {
+            return { symbol: '○', color };
+        }
+        if (form === ' block') {
+            return { symbol: '■', color };
+        }
+        if (form === ' fan' || form === ' wall fan') {
+            return { symbol: '◇', color };
+        }
+    }
+
+    return undefined;
+}
+
+// Every real wood-species form NOT already folded by canonicalizeName (planks/log/stripped/boat
+// keep their existing flat, single-colour identity - see WOOD_SPECIES_COLORS' own comment for why).
+// Checked against `name` directly, not the canonicalized form, since canonicalizeName would already
+// have folded away anything this function needs to see species-distinctly.
+function getWoodFormFamilyMatch(name: string): ItemSymbol | undefined {
+    for (const species of Object.keys(WOOD_SPECIES_COLORS)) {
+        if (!name.startsWith(species + ' ')) {
+            continue;
+        }
+
+        const form = name.slice(species.length + 1);
+        const shape = WOOD_FORM_SHAPES[form];
+
+        if (!shape) {
+            continue;
+        }
+
+        const color = WOOD_FORM_IS_GROWTH.has(form) ? WOOD_LEAF_COLORS[species] : WOOD_SPECIES_COLORS[species];
+        return { symbol: shape, color };
+    }
+
+    return undefined;
+}
+
+// Real tool/armour material tiers (verified: axe/hoe/pickaxe/shovel/sword/spear and helmet/
+// chestplate/leggings/boots/horse armor, wooden/stone/leather/chainmail/iron/copper/golden/
+// netherite - diamond excluded, already covered per-piece by RESERVED_SYMBOLS). "<material> <item
+// type>" - checked as two whole words from the front, not a generic prefix, since "iron" alone is
+// also a real standalone item (RESERVED_SYMBOLS' iron ingot) that must never match this.
+function getMaterialTierFamilyMatch(name: string): ItemSymbol | undefined {
+    for (const material of Object.keys(MATERIAL_TIER_COLORS)) {
+        if (!name.startsWith(material + ' ')) {
+            continue;
+        }
+
+        const itemType = name.slice(material.length + 1);
+        const shape = MATERIAL_TIER_ITEM_SHAPES[itemType];
+
+        if (shape) {
+            return { symbol: shape, color: MATERIAL_TIER_COLORS[material] };
+        }
+    }
+
+    return undefined;
+}
+
+// The real "Block of X" Mojang rename (see MODERN_BLOCK_NAMES) - checked as its own prefix rather
+// than reversed into "X block" and re-run through the rest of resolveFixedSymbol, so there's no
+// risk of the reversed string accidentally matching something it shouldn't via a different family.
+function getModernBlockNameMatch(name: string): ItemSymbol | undefined {
+    if (!name.startsWith('block of ')) {
+        return undefined;
+    }
+
+    return MODERN_BLOCK_NAMES[name.slice('block of '.length)];
+}
+
 // Single entry point for "this name has a fixed, hand-matched identity" - a single reserved item
 // first, then a colour-family match. A caller building a multi-item display should resolve every
 // name through this in one pass before any hash runs: a fixed identity never checks for collisions,
@@ -159,7 +277,9 @@ export function resolveFixedSymbol(name: string): ItemSymbol | undefined {
     const canonical = canonicalizeName(name);
 
     return RESERVED_SYMBOLS[canonical] || getColorFamilyMatch(canonical) || getCopperFamilyMatch(canonical)
-        || getPotionFamilyMatch(canonical);
+        || getPotionFamilyMatch(canonical) || getOreFamilyMatch(canonical) || getCoralFamilyMatch(canonical)
+        || getWoodFormFamilyMatch(canonical) || getMaterialTierFamilyMatch(canonical)
+        || getModernBlockNameMatch(canonical);
 }
 
 function isPale(hex: string): boolean {
@@ -177,20 +297,28 @@ function isPale(hex: string): boolean {
 // for the same display twice always renders it the same way. A candidate is also skipped if it
 // would put a second pale colour on a shape another pale entry already claimed (see isPale above),
 // even when the exact pair differs.
-export function resolveHashedSymbol(name: string, usedSoFar: Map<string, ItemSymbol>): ItemSymbol {
+// `symbols` defaults to DISPLAY_SYMBOLS (the confirmed-safe pool) - a caller that's verified
+// PROVISIONAL_DISPLAY_SYMBOLS render correctly on their target device can pass a wider pool
+// (e.g. `[...DISPLAY_SYMBOLS, ...PROVISIONAL_DISPLAY_SYMBOLS]`) explicitly; nothing opts into an
+// unconfirmed glyph by default.
+export function resolveHashedSymbol(
+    name: string,
+    usedSoFar: Map<string, ItemSymbol>,
+    symbols: string[] = DISPLAY_SYMBOLS,
+): ItemSymbol {
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
         hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
     }
 
-    const totalCombos = DISPLAY_SYMBOLS.length * SYMBOL_COLORS.length;
+    const totalCombos = symbols.length * SYMBOL_COLORS.length;
     const usedPairs = new Set([...usedSoFar.values()].map(v => `${v.symbol}|${v.color}`));
     const usedPaleShapes = new Set([...usedSoFar.values()].filter(v => isPale(v.color)).map(v => v.symbol));
 
     for (let attempt = 0; attempt < totalCombos; attempt++) {
         const slot = (hash + attempt) % totalCombos;
-        const symbol = DISPLAY_SYMBOLS[slot % DISPLAY_SYMBOLS.length];
-        const color = SYMBOL_COLORS[Math.floor(slot / DISPLAY_SYMBOLS.length) % SYMBOL_COLORS.length];
+        const symbol = symbols[slot % symbols.length];
+        const color = SYMBOL_COLORS[Math.floor(slot / symbols.length) % SYMBOL_COLORS.length];
 
         if (usedPairs.has(`${symbol}|${color}`)) {
             continue;
@@ -204,13 +332,13 @@ export function resolveHashedSymbol(name: string, usedSoFar: Map<string, ItemSym
     }
 
     // Every combo already taken elsewhere in this display - not reachable in practice for a real
-    // Minecraft recipe (max 4 distinct ingredients against 64 combos), kept only so this always
-    // returns something rather than needing a caller-side null check.
+    // Minecraft recipe (max 4 distinct ingredients against dozens of combos), kept only so this
+    // always returns something rather than needing a caller-side null check.
     const slot = hash % totalCombos;
 
     return {
-        symbol: DISPLAY_SYMBOLS[slot % DISPLAY_SYMBOLS.length],
-        color: SYMBOL_COLORS[Math.floor(slot / DISPLAY_SYMBOLS.length) % SYMBOL_COLORS.length],
+        symbol: symbols[slot % symbols.length],
+        color: SYMBOL_COLORS[Math.floor(slot / symbols.length) % SYMBOL_COLORS.length],
     };
 }
 

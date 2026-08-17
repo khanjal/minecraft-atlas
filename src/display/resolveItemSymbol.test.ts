@@ -1,7 +1,26 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { resolveItemSymbol, resolveFixedSymbol, resolveHashedSymbol, canonicalizeName } from './resolveItemSymbol';
+import { DISPLAY_SYMBOLS, PROVISIONAL_DISPLAY_SYMBOLS, SYMBOL_COLORS } from './itemSymbols';
 import { ItemSymbol } from '../models/item-symbol.model';
+
+test('resolveHashedSymbol only draws from the confirmed-safe pool by default', () => {
+    const usedSoFar = new Map<string, ItemSymbol>();
+    for (const name of ['a', 'bb', 'ccc', 'dddd', 'eeeee']) {
+        const result = resolveHashedSymbol(name, usedSoFar);
+        assert.equal(DISPLAY_SYMBOLS.includes(result.symbol), true);
+        assert.equal(PROVISIONAL_DISPLAY_SYMBOLS.includes(result.symbol), false);
+        usedSoFar.set(name, result);
+    }
+});
+
+test('resolveHashedSymbol accepts an explicit wider pool for a caller that has confirmed it', () => {
+    const usedSoFar = new Map<string, ItemSymbol>();
+    const widerPool = [...DISPLAY_SYMBOLS, ...PROVISIONAL_DISPLAY_SYMBOLS];
+    const result = resolveHashedSymbol('some item', usedSoFar, widerPool);
+    assert.equal(widerPool.includes(result.symbol), true);
+    assert.equal(SYMBOL_COLORS.includes(result.color), true);
+});
 
 test('canonicalizeName folds every wood species into one of three identities', () => {
     assert.equal(canonicalizeName('oak planks'), 'planks');
@@ -33,9 +52,45 @@ test('resolveFixedSymbol matches a colour family, longest colour name first', ()
 });
 
 test('resolveFixedSymbol returns undefined for a colour prefix with no listed family', () => {
-    // "purple shulker box" - shulker box was deliberately excluded (never an ingredient in any
-    // real 26.2 shaped recipe, see itemSymbols.ts).
-    assert.equal(resolveFixedSymbol('purple shulker box'), undefined);
+    // "candle cake" doesn't exist as a suffix - the real name is "cake with <colour> candle",
+    // colour in the middle rather than as a prefix, a deliberately out-of-scope pattern.
+    assert.equal(resolveFixedSymbol('purple cake with candle'), undefined);
+});
+
+test('resolveFixedSymbol covers the color families added for full item/block coverage', () => {
+    // These four were excluded from the original recipe-grid-only scope (never a recipe
+    // ingredient) but are real, verified 16-colour families once full coverage matters.
+    assert.deepEqual(resolveFixedSymbol('purple shulker box'), { symbol: '▯', color: '#8932b8' });
+    assert.deepEqual(resolveFixedSymbol('red concrete'), { symbol: '■', color: '#b02e26' });
+    assert.deepEqual(resolveFixedSymbol('red concrete powder'), { symbol: '◇', color: '#b02e26' });
+    assert.deepEqual(resolveFixedSymbol('red glazed terracotta'), { symbol: '◆', color: '#b02e26' });
+    assert.deepEqual(resolveFixedSymbol('blue candle'), { symbol: '▮', color: '#3c44aa' });
+});
+
+test('resolveFixedSymbol matches the real ore family by mineral, muted for stone/deepslate', () => {
+    assert.deepEqual(resolveFixedSymbol('coal ore'), { symbol: '■', color: '#6e7275' });
+    assert.deepEqual(resolveFixedSymbol('deepslate coal ore'), { symbol: '■', color: '#494d55' });
+    assert.deepEqual(resolveFixedSymbol('diamond ore'), { symbol: '■', color: '#67a6b5' });
+    assert.deepEqual(resolveFixedSymbol('deepslate redstone ore'), { symbol: '■', color: '#93494b' });
+    // Real exceptions: nether-prefixed, no deepslate variant, but still real ore names.
+    assert.deepEqual(resolveFixedSymbol('nether gold ore'), { symbol: '■', color: '#b89743' });
+    assert.deepEqual(resolveFixedSymbol('nether quartz ore'), { symbol: '■', color: '#b1afa8' });
+});
+
+test('resolveFixedSymbol requires a real ore mineral, not just an "ore" suffix', () => {
+    // A naive `name.endsWith('ore')` (no leading space) would wrongly match "heavy core" - the
+    // real check requires " ore" as its own word, and a real mineral name before it.
+    assert.equal(resolveFixedSymbol('unobtainium ore'), undefined);
+});
+
+test('resolveFixedSymbol matches coral by type and form, dead corals sharing one grey', () => {
+    assert.deepEqual(resolveFixedSymbol('tube coral'), { symbol: '○', color: '#3a8ee0' });
+    assert.deepEqual(resolveFixedSymbol('tube coral block'), { symbol: '■', color: '#3a8ee0' });
+    assert.deepEqual(resolveFixedSymbol('tube coral fan'), { symbol: '◇', color: '#3a8ee0' });
+    assert.deepEqual(resolveFixedSymbol('tube coral wall fan'), { symbol: '◇', color: '#3a8ee0' });
+    // Every dead coral, regardless of type, shares one bleached-grey colour but keeps its form's shape.
+    assert.deepEqual(resolveFixedSymbol('dead fire coral block'), { symbol: '■', color: '#8f7f76' });
+    assert.deepEqual(resolveFixedSymbol('dead horn coral'), { symbol: '○', color: '#8f7f76' });
 });
 
 test('resolveFixedSymbol matches copper forms by oxidation stage, waxed or not', () => {
@@ -93,4 +148,49 @@ test('resolveItemSymbol falls back to a hashed identity for an unmatched name', 
     assert.equal(typeof result.symbol, 'string');
     assert.equal(typeof result.color, 'string');
     assert.equal(result.color.startsWith('#'), true);
+});
+
+test('resolveFixedSymbol covers real wood-species forms beyond planks/log/boat', () => {
+    // Standard tree species: leaves get the species' real leaf tone, not its wood tone.
+    assert.deepEqual(resolveFixedSymbol('oak leaves'), { symbol: '○', color: '#4a7a2e' });
+    assert.deepEqual(resolveFixedSymbol('cherry leaves'), { symbol: '○', color: '#f4c2d7' });
+    assert.deepEqual(resolveFixedSymbol('dark oak door'), { symbol: '▯', color: '#4a3728' });
+    assert.deepEqual(resolveFixedSymbol('mangrove hanging sign'), { symbol: '▭', color: '#8f3a2e' });
+    // Nether wood species have a real, different form set - no leaves/boat, but fungus/roots/hyphae/
+    // nylium instead.
+    assert.deepEqual(resolveFixedSymbol('crimson fungus'), { symbol: '★', color: '#8f2233' });
+    assert.deepEqual(resolveFixedSymbol('warped nylium'), { symbol: '■', color: '#2a8f8a' });
+    // Bamboo has its own real form set too (raft/shoot/mosaic instead of boat/sapling/planks-cut-forms).
+    assert.deepEqual(resolveFixedSymbol('bamboo shoot'), { symbol: '★', color: '#8fc73e' });
+    assert.deepEqual(resolveFixedSymbol('bamboo mosaic stairs'), { symbol: '■', color: '#c9b23a' });
+});
+
+test('canonicalizeName folds "X boat with chest" / "X raft with chest", not just bare boat/raft', () => {
+    // Real bug found while extending wood coverage: the original fold only checked
+    // name.endsWith('boat'), which never matches the real "oak boat with chest" naming.
+    assert.equal(canonicalizeName('oak boat with chest'), 'boat');
+    assert.equal(canonicalizeName('bamboo raft with chest'), 'boat');
+    assert.deepEqual(resolveFixedSymbol('oak boat with chest'), { symbol: '▼', color: '#c9976b' });
+});
+
+test('resolveFixedSymbol matches real tool/armour material tiers (diamond excluded, already reserved)', () => {
+    assert.deepEqual(resolveFixedSymbol('wooden axe'), { symbol: '▬', color: '#c9976b' });
+    assert.deepEqual(resolveFixedSymbol('stone sword'), { symbol: '◆', color: '#7d7d78' });
+    assert.deepEqual(resolveFixedSymbol('golden pickaxe'), { symbol: '▬', color: '#ffb703' });
+    assert.deepEqual(resolveFixedSymbol('netherite chestplate'), { symbol: '▯', color: '#544c53' });
+    assert.deepEqual(resolveFixedSymbol('chainmail helmet'), { symbol: '▯', color: '#8a8f99' });
+    assert.deepEqual(resolveFixedSymbol('leather horse armor'), { symbol: '▯', color: '#935c34' });
+    // A bare material name must never match on its own - only "<material> <real item type>".
+    assert.equal(resolveFixedSymbol('iron'), undefined);
+});
+
+test('resolveFixedSymbol matches the real "Block of X" Mojang rename to its existing colour', () => {
+    assert.deepEqual(resolveFixedSymbol('block of iron'), { symbol: '■', color: '#c7ccd1' });
+    assert.deepEqual(resolveFixedSymbol('block of lapis lazuli'), { symbol: '■', color: '#2b4c9e' });
+    assert.deepEqual(resolveFixedSymbol('block of raw copper'), { symbol: '◐', color: '#d4823a' });
+    assert.equal(resolveFixedSymbol('block of unobtainium'), undefined);
+});
+
+test('resolveFixedSymbol covers the real bundle colour family (genuinely missed in the initial port)', () => {
+    assert.deepEqual(resolveFixedSymbol('black bundle'), { symbol: '▬', color: '#1d1d21' });
 });
