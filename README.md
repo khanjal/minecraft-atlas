@@ -43,7 +43,7 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 ### Tests
 
-`npm test` runs 90 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
+`npm test` runs 93 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
 Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`, both Java and Bedrock
 `recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the generic
 `match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
@@ -361,7 +361,13 @@ pattern the original port already used for dye/copper/potion families), applied 
   (confirmed live: minecraft-data's current `displayName` says "Block of Iron", not "Iron Block" -
   Craft Helper's own cleaned pipeline still emits the pre-rename order, which is why
   `RESERVED_SYMBOLS` kept the old keys, but a consumer working from this project's own unprocessed
-  `Item.displayName` needs both forms to resolve to the same identity).
+  `Item.displayName` needs both forms to resolve to the same identity). A stone/mineral family
+  (168 real names across slab/stairs/wall for ~35 base materials, plus the 12 real "chiseled/
+  cracked/infested X bricks" names as direct aliases) - reuses each base material's own existing
+  colour the same way the ore/wood families do, and deliberately gives slab a *different* shape
+  from plank's own square: an earlier version shared the shape and a real collision was found (two
+  actual recipes, `barrel` and `chiseled bookshelf`, use planks and a wooden-slab tag as separate
+  ingredients of the same species) - see the verification note below.
 - **A real bug found and fixed along the way**: the wood-species boat fold only matched
   `name.endsWith('boat')`, silently missing every real "X boat with chest" name (9 across all wood
   species use exactly that phrasing, not "X chest boat" as the original comment assumed) - the fold
@@ -385,18 +391,16 @@ pattern the original port already used for dye/copper/potion families), applied 
   they render correctly on their target device; nothing opts in by default.
 
 **Honest, measured results** (checked live against real 26.1 Java data and real v1.26.40.05 Bedrock
-data, not estimated): **59.9%** of the real 1,590 unique Java item+block names now resolve through a
-real, verified rule rather than the hash fallback (up from ~11% before this pass, when only the
+data, not estimated): **66.4%** of the real 1,590 unique Java item+block names now resolve through a
+real, verified rule rather than the hash fallback (up from ~11% before this session, when only the
 original ~180-entry recipe-grid list existed). **64.3%** of Java's 157 real entities and **74.0%** of
 Bedrock's 127 real entities resolve through a real category rule. Every name still gets *something*
 either way - `resolveItemSymbol`/`resolveEntitySymbol` always return a deterministic, collision-
 avoiding identity via the hash fallback - so "does every item/block/entity have a symbol and
 colour" is unconditionally true; "is that identity a deliberately verified one or a computed one" is
-true for roughly three-fifths of items/blocks and two-thirds to three-quarters of entities. What's
-left in the hash fallback and wasn't tackled this pass, in rough order of size: spawn eggs (93,
-real per-mob colours exist in the game but verifying and hand-entering ~90 without a fetchable
-source wasn't attempted), stone/mineral building-material forms - slab/stairs/wall/bricks across
-~20 base materials (~130 names, a real family the same shape as the wood one, just not built yet),
+true for two-thirds of items/blocks and two-thirds to three-quarters of entities. What's left in the
+hash fallback and wasn't tackled yet, in rough order of size: spawn eggs (93, real per-mob colours
+exist in the game but verifying and hand-entering ~90 without a fetchable source wasn't attempted),
 pottery sherds (23, each depicts a distinct picture with no shared colour), banner patterns (10,
 same reasoning), and a long tail of individually unique blocks/items (anvil, beacon, barrel, ...)
 that never shared a family to begin with.

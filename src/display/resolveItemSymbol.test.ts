@@ -194,3 +194,35 @@ test('resolveFixedSymbol matches the real "Block of X" Mojang rename to its exis
 test('resolveFixedSymbol covers the real bundle colour family (genuinely missed in the initial port)', () => {
     assert.deepEqual(resolveFixedSymbol('black bundle'), { symbol: '▬', color: '#1d1d21' });
 });
+
+test('resolveFixedSymbol matches the real stone-material family across slab/stairs/wall', () => {
+    // andesite/granite/diorite/etc. have no individual RESERVED_SYMBOLS slab/stairs/wall entry of
+    // their own (unlike stone, which does - see the next test), so these three only resolve via
+    // the new family match.
+    assert.deepEqual(resolveFixedSymbol('andesite slab'), { symbol: '▬', color: '#7a7f82' });
+    assert.deepEqual(resolveFixedSymbol('andesite stairs'), { symbol: '◐', color: '#7a7f82' });
+    assert.deepEqual(resolveFixedSymbol('andesite wall'), { symbol: '▮', color: '#7a7f82' });
+    // Longer prefixes must win over a shorter one that's also a real, valid material on its own -
+    // "polished blackstone brick wall" is polished-blackstone-brick, not "blackstone" (or
+    // "polished blackstone") plus a leftover remainder that isn't a real form. None of the wall
+    // forms were part of the original recipe-grid-scoped RESERVED_SYMBOLS list, so this is a clean
+    // test of the family match alone.
+    assert.deepEqual(resolveFixedSymbol('polished blackstone brick wall'), { symbol: '▮', color: '#2b2530' });
+    // "stone slab"/"stone brick slab"/"smooth stone slab" are already individually reserved
+    // (RESERVED_SYMBOLS, from the original recipe-grid port) with their own '■' shape - confirming
+    // that pre-existing, more specific identity still wins over the new family's generic '▬'.
+    assert.deepEqual(resolveFixedSymbol('stone slab'), { symbol: '■', color: '#7d7d78' });
+    assert.deepEqual(resolveFixedSymbol('smooth stone slab'), { symbol: '■', color: '#9a9a94' });
+});
+
+test('resolveFixedSymbol matches the real chiseled/cracked/infested brick variants', () => {
+    assert.deepEqual(resolveFixedSymbol('infested cracked stone bricks'), { symbol: '■', color: '#7d7d78' });
+    assert.deepEqual(resolveFixedSymbol('chiseled tuff bricks'), { symbol: '■', color: '#5c6058' });
+});
+
+test('resolveFixedSymbol keeps wood-slab and stone-slab visually distinct despite sharing a glyph', () => {
+    const woodSlab = resolveFixedSymbol('oak slab');
+    const stoneSlab = resolveFixedSymbol('andesite slab');
+    assert.equal(woodSlab?.symbol, stoneSlab?.symbol);
+    assert.notEqual(woodSlab?.color, stoneSlab?.color);
+});

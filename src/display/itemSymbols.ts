@@ -618,6 +618,11 @@ export const RESERVED_SYMBOLS: Record<string, ItemSymbol> = {
     // Crossbow pairs this with stick, iron ingot, and string; trapped chest pairs it with chest -
     // avoiding all four shapes.
     'tripwire hook': { symbol: '◆', color: '#8a7a6a' },
+    // A legacy leftover from before slabs were reworked (the old "wood plank slab" texture, kept
+    // as its own distinct block rather than merged into oak's real slab) - visually oak-toned, so
+    // it reuses that colour, with the stone-family's own slab shape since it mines like stone
+    // rather than wood despite the look.
+    'petrified oak slab': { symbol: '▬', color: '#c9976b' },
 };
 
 // Minecraft's 16 standard dye colours, in their real hex values (the same tones the wiki's colour
@@ -844,6 +849,94 @@ export const WOOD_FORM_SHAPES: Record<string, string> = {
 // Which of WOOD_FORM_SHAPES' forms are "the growing/living part" of the species (foliage or
 // fungus), and so should use WOOD_LEAF_COLORS rather than the wood-grain WOOD_SPECIES_COLORS.
 export const WOOD_FORM_IS_GROWTH = new Set(['leaves', 'sapling', 'shoot', 'fungus', 'roots']);
+
+// Every real stone/mineral material prefix needed for the slab/stairs/wall family (verified
+// against the real 26.2 catalog: 103 real names across these three suffixes, after excluding wood
+// species and copper's cut-copper forms, which already have their own coverage). Every colour here
+// reuses that exact material's own existing RESERVED_SYMBOLS colour where one exists - the same
+// approach ORE_COLORS and WOOD_SPECIES_COLORS already take - rather than inventing a new one, since
+// "andesite slab" and plain "andesite" are genuinely the same rock. A few materials (cut/smooth
+// sandstone variants, polished andesite/diorite/granite) already have their own reserved colour
+// under a slightly different key than their slab/stairs form uses, so those are repeated here
+// rather than assumed identical without checking.
+export const STONE_MATERIAL_COLORS: Record<string, string> = {
+    'andesite': '#7a7f82',
+    'polished andesite': '#7a7f82',
+    'blackstone': '#2b2530',
+    'polished blackstone': '#2b2530',
+    'polished blackstone brick': '#2b2530',
+    // The compressed clay brick block (RESERVED_SYMBOLS' 'bricks'), not the single brick item
+    // (which stays its own triangle - see RESERVED_SYMBOLS above).
+    'brick': '#9c4a3c',
+    'cobblestone': '#8a8a8a',
+    'cobbled deepslate': '#3a3a3d',
+    'deepslate brick': '#3a3a3d',
+    'deepslate tile': '#3a3a3d',
+    'polished deepslate': '#3a3a3d',
+    'cut sandstone': '#d4c47a',
+    'smooth sandstone': '#d4c47a',
+    'cut red sandstone': '#a8532f',
+    'smooth red sandstone': '#a8532f',
+    'sandstone': '#d4c47a',
+    'red sandstone': '#a8532f',
+    'dark prismarine': '#2d5f58',
+    'prismarine': '#5f9e94',
+    'prismarine brick': '#5f9e94',
+    'diorite': '#c7c5bd',
+    'polished diorite': '#c7c5bd',
+    'end stone brick': '#dcd6a3',
+    'granite': '#a5665a',
+    'polished granite': '#a5665a',
+    'mossy cobblestone': '#6f8a5c',
+    'mossy stone brick': '#6b7a5c',
+    'mud brick': '#8a7355',
+    'nether brick': '#432022',
+    'red nether brick': '#5c1f22',
+    'purpur': '#a878b8',
+    'quartz': '#f0ece2',
+    'resin brick': '#c9752f',
+    'smooth quartz': '#f0ece2',
+    'stone': '#7d7d78',
+    'stone brick': '#7d7d78',
+    'tuff': '#5c6058',
+    'tuff brick': '#5c6058',
+    'polished tuff': '#5c6058',
+};
+
+// Shared across every material above - the same shape distinguishes "which form" (slab/stairs/
+// wall) regardless of which rock it's made of, matching the wood-form family's own precedent.
+// 'slab'/'stairs' deliberately reuse the exact glyphs WOOD_FORM_SHAPES uses for the same forms:
+// the colour (grey/tan stone tones vs brown/green wood tones) is what actually tells a stone slab
+// and a wood slab apart, and the two families' materials never share a name, so there's no real
+// collision risk despite the shared glyph. 'wall' is stone-only (no real wood walls exist), so it
+// gets a shape not otherwise used by the wood-form table.
+export const STONE_FORM_SHAPES: Record<string, string> = {
+    'slab': '▬',
+    'stairs': '◐',
+    'wall': '▮',
+};
+
+// The twelve real "chiseled/cracked/infested X bricks" names that don't fit the plain
+// "<material> <form>" pattern above (the prefix comes before the material, not after: "infested
+// cracked stone bricks", not "stone infested cracked bricks") - enumerated directly rather than
+// parsed, since a general three-part prefix parser for twelve names would be more code than the
+// data it replaces. Every one reuses its base material's own real colour - a chiseled or infested
+// stone brick is still the same rock, just differently carved or bug-riddled.
+export const STONE_BRICK_VARIANTS: Record<string, ItemSymbol> = {
+    'chiseled nether bricks': { symbol: '■', color: '#432022' },
+    'chiseled resin bricks': { symbol: '■', color: '#c9752f' },
+    'chiseled stone bricks': { symbol: '■', color: '#7d7d78' },
+    'chiseled tuff bricks': { symbol: '■', color: '#5c6058' },
+    'cracked deepslate bricks': { symbol: '■', color: '#3a3a3d' },
+    'cracked nether bricks': { symbol: '■', color: '#432022' },
+    'cracked polished blackstone bricks': { symbol: '■', color: '#2b2530' },
+    'cracked stone bricks': { symbol: '■', color: '#7d7d78' },
+    'infested chiseled stone bricks': { symbol: '■', color: '#7d7d78' },
+    'infested cracked stone bricks': { symbol: '■', color: '#7d7d78' },
+    'infested mossy stone bricks': { symbol: '■', color: '#6b7a5c' },
+    'infested stone bricks': { symbol: '■', color: '#7d7d78' },
+    'quartz bricks': { symbol: '■', color: '#f0ece2' },
+};
 
 // Every real tool/armour material tier except diamond, which already has its own individual
 // RESERVED_SYMBOLS entry per piece above (twelve real recipes make diamond tools/armour the base

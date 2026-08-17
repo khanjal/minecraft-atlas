@@ -12,7 +12,7 @@ import {
     COPPER_OXIDATION_COLORS, COPPER_FORMS, POTION_EFFECT_COLORS, POTION_BASE_COLORS, ORE_COLORS,
     CORAL_COLORS, DEAD_CORAL_COLOR, WOOD_SPECIES_COLORS, WOOD_LEAF_COLORS, WOOD_FORM_SHAPES,
     WOOD_FORM_IS_GROWTH, MATERIAL_TIER_COLORS, MATERIAL_TIER_ITEM_SHAPES, MODERN_BLOCK_NAMES,
-    PALE_BRIGHTNESS_THRESHOLD,
+    STONE_MATERIAL_COLORS, STONE_FORM_SHAPES, STONE_BRICK_VARIANTS, PALE_BRIGHTNESS_THRESHOLD,
 } from './itemSymbols';
 
 // Folds every wood's planks ("oak planks", "birch planks", the "planks" tag itself, ...) into one
@@ -268,6 +268,36 @@ function getModernBlockNameMatch(name: string): ItemSymbol | undefined {
     return MODERN_BLOCK_NAMES[name.slice('block of '.length)];
 }
 
+// Real stone/mineral "<material> slab/stairs/wall" names (verified: 103 across these three
+// suffixes, wood species and cut-copper forms excluded since they're already covered elsewhere).
+// Safe against prefix overlap without needing a longest-first check (unlike DYE_COLORS): a match
+// only returns once the *remaining* text after the material name is itself a recognised form -
+// "stone brick slab" tried against the shorter "stone" prefix leaves "brick slab", which isn't a
+// valid form, so the loop continues to the longer, correct "stone brick" match instead of stopping
+// early on a false positive.
+function getStoneFormFamilyMatch(name: string): ItemSymbol | undefined {
+    for (const material of Object.keys(STONE_MATERIAL_COLORS)) {
+        if (!name.startsWith(material + ' ')) {
+            continue;
+        }
+
+        const form = name.slice(material.length + 1);
+        const shape = STONE_FORM_SHAPES[form];
+
+        if (shape) {
+            return { symbol: shape, color: STONE_MATERIAL_COLORS[material] };
+        }
+    }
+
+    return undefined;
+}
+
+// The twelve real "chiseled/cracked/infested X bricks" names (see STONE_BRICK_VARIANTS) that don't
+// fit the material-then-form pattern above.
+function getStoneBrickVariantMatch(name: string): ItemSymbol | undefined {
+    return STONE_BRICK_VARIANTS[name];
+}
+
 // Single entry point for "this name has a fixed, hand-matched identity" - a single reserved item
 // first, then a colour-family match. A caller building a multi-item display should resolve every
 // name through this in one pass before any hash runs: a fixed identity never checks for collisions,
@@ -279,7 +309,8 @@ export function resolveFixedSymbol(name: string): ItemSymbol | undefined {
     return RESERVED_SYMBOLS[canonical] || getColorFamilyMatch(canonical) || getCopperFamilyMatch(canonical)
         || getPotionFamilyMatch(canonical) || getOreFamilyMatch(canonical) || getCoralFamilyMatch(canonical)
         || getWoodFormFamilyMatch(canonical) || getMaterialTierFamilyMatch(canonical)
-        || getModernBlockNameMatch(canonical);
+        || getModernBlockNameMatch(canonical) || getStoneFormFamilyMatch(canonical)
+        || getStoneBrickVariantMatch(canonical);
 }
 
 function isPale(hex: string): boolean {
