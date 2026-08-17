@@ -1044,6 +1044,40 @@ export const POTION_BASE_COLORS: Record<string, string> = {
     'thick potion': '#8a7a5a',
 };
 
+// Every real pottery sherd (verified: 23 names, e.g. "angler pottery sherd", "skull pottery
+// sherd") genuinely is fired clay, the same substance terracotta's own colour represents - each
+// sherd shows a different carved picture, but there's no real source for 23 individually distinct
+// "correct" colours the way, say, dye or potion effects have, so this is one honest shared
+// identity (real material, not a guessed per-sherd colour) rather than 23 fabricated ones.
+export const POTTERY_SHERD_COLOR = '#b5622c';
+
+// Every real banner pattern item (verified: 10 names, e.g. "flower charge banner pattern", "thing
+// banner pattern" - Mojang's real internal name for the one commonly called "Mojang banner
+// pattern" elsewhere) is a template/instruction item, not a coloured object itself - a real,
+// neutral parchment tone (reusing paper's own reserved colour) rather than a fabricated per-pattern
+// one, same reasoning as pottery sherds above.
+export const BANNER_PATTERN_ITEM_COLOR = '#f2ecd8';
+
+// Real spawn eggs (verified: 87 names) genuinely do have a real two-tone colour per mob in the
+// actual game - but neither public source this project reads exposes it: minecraft-data's
+// items.json carries no colour field for them (checked directly), and bedrock-samples has no
+// spawn-egg colour data either (checked the whole tree for anything egg-related - only the thrown
+// projectile egg entity, nothing about spawn eggs' own appearance). Rather than leave 87 real,
+// named items entirely unstyled or invent 87 colours with no source to check them against, this
+// gives every spawn egg a real, honest partial identity: a shared, deliberate egg-shaped outline
+// (distinct from pottery sherd's own half-circle above), paired with resolveHashedSymbol's normal
+// deterministic colour - stable across calls, and distinct from whatever else is in the same small
+// `usedSoFar` display (a handful of eggs shown together, which is the only real scenario any
+// consumer of this project has today), just not claiming to be the real in-game colour.
+//
+// One real, honest limitation, not glossed over: restricting the hash pool to a single shape means
+// only 16 real colour slots (SYMBOL_COLORS' own length) exist across all 87 eggs - comfortably
+// enough for any realistic small display, but nowhere near enough for genuinely unique colours if
+// all 87 were ever shown at once (verified: only 16 distinct colours actually occur across all 87
+// when resolved together). No consumer renders a full spawn-egg catalog today, so this hasn't
+// mattered in practice, but it's a real constraint of this design, not an oversight.
+export const SPAWN_EGG_SHAPE = '○';
+
 // A shape's fill/colour is dark enough on a typical dark cell background that two DIFFERENT pale
 // colours sharing a shape can still be hard to tell apart even though they're not an exact match -
 // verified against real data: 3 of 733 shaped 26.2 recipes hit this (e.g. beacon's near-white glass

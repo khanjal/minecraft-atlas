@@ -12,7 +12,8 @@ import {
     COPPER_OXIDATION_COLORS, COPPER_FORMS, POTION_EFFECT_COLORS, POTION_BASE_COLORS, ORE_COLORS,
     CORAL_COLORS, DEAD_CORAL_COLOR, WOOD_SPECIES_COLORS, WOOD_LEAF_COLORS, WOOD_FORM_SHAPES,
     WOOD_FORM_IS_GROWTH, MATERIAL_TIER_COLORS, MATERIAL_TIER_ITEM_SHAPES, MODERN_BLOCK_NAMES,
-    STONE_MATERIAL_COLORS, STONE_FORM_SHAPES, STONE_BRICK_VARIANTS, PALE_BRIGHTNESS_THRESHOLD,
+    STONE_MATERIAL_COLORS, STONE_FORM_SHAPES, STONE_BRICK_VARIANTS, POTTERY_SHERD_COLOR,
+    BANNER_PATTERN_ITEM_COLOR, SPAWN_EGG_SHAPE, PALE_BRIGHTNESS_THRESHOLD,
 } from './itemSymbols';
 
 // Folds every wood's planks ("oak planks", "birch planks", the "planks" tag itself, ...) into one
@@ -298,6 +299,20 @@ function getStoneBrickVariantMatch(name: string): ItemSymbol | undefined {
     return STONE_BRICK_VARIANTS[name];
 }
 
+// Every real pottery sherd (23 names) shares one identity - a real material (fired clay, the same
+// substance terracotta's colour represents), not 23 fabricated per-picture colours. A half-circle
+// evokes a broken shard, distinct from terracotta's own filled circle.
+function getPotterySherdMatch(name: string): ItemSymbol | undefined {
+    return name.endsWith(' pottery sherd') ? { symbol: '◐', color: POTTERY_SHERD_COLOR } : undefined;
+}
+
+// Every real banner pattern item (10 names) shares one identity too, same reasoning - a real
+// parchment/template tone (reusing paper's own colour) rather than a fabricated per-pattern one.
+// A small rectangle (a pattern card), distinct from an actual dyed banner's star (COLOR_FAMILY_SHAPES).
+function getBannerPatternItemMatch(name: string): ItemSymbol | undefined {
+    return name.endsWith(' banner pattern') ? { symbol: '▭', color: BANNER_PATTERN_ITEM_COLOR } : undefined;
+}
+
 // Single entry point for "this name has a fixed, hand-matched identity" - a single reserved item
 // first, then a colour-family match. A caller building a multi-item display should resolve every
 // name through this in one pass before any hash runs: a fixed identity never checks for collisions,
@@ -310,7 +325,8 @@ export function resolveFixedSymbol(name: string): ItemSymbol | undefined {
         || getPotionFamilyMatch(canonical) || getOreFamilyMatch(canonical) || getCoralFamilyMatch(canonical)
         || getWoodFormFamilyMatch(canonical) || getMaterialTierFamilyMatch(canonical)
         || getModernBlockNameMatch(canonical) || getStoneFormFamilyMatch(canonical)
-        || getStoneBrickVariantMatch(canonical);
+        || getStoneBrickVariantMatch(canonical) || getPotterySherdMatch(canonical)
+        || getBannerPatternItemMatch(canonical);
 }
 
 function isPale(hex: string): boolean {
@@ -379,6 +395,22 @@ export function resolveHashedSymbol(
 // that needs the two-pass ordering resolveFixedSymbol's own doc comment describes (resolve every
 // fixed identity first, independent of processing order, before any hash runs) should call
 // resolveFixedSymbol and resolveHashedSymbol separately instead, the way this function is defined.
+//
+// One real, partial exception: a spawn egg name (see SPAWN_EGG_SHAPE, itemSymbols.ts) gets a
+// known, honest shape even though there's no real per-mob colour source to make it a full fixed
+// identity - the hash pool is restricted to that one shape so resolveHashedSymbol effectively
+// becomes a colour-only picker, still deterministic and still collision-avoiding against
+// `usedSoFar`, just never landing on a different glyph the way an unrecognised name would.
 export function resolveItemSymbol(name: string, usedSoFar: Map<string, ItemSymbol>): ItemSymbol {
-    return resolveFixedSymbol(name) ?? resolveHashedSymbol(canonicalizeName(name), usedSoFar);
+    const fixed = resolveFixedSymbol(name);
+    if (fixed) {
+        return fixed;
+    }
+
+    const canonical = canonicalizeName(name);
+    if (canonical.endsWith(' spawn egg')) {
+        return resolveHashedSymbol(canonical, usedSoFar, [SPAWN_EGG_SHAPE]);
+    }
+
+    return resolveHashedSymbol(canonical, usedSoFar);
 }

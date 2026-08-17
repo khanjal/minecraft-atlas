@@ -226,3 +226,39 @@ test('resolveFixedSymbol keeps wood-slab and stone-slab visually distinct despit
     assert.equal(woodSlab?.symbol, stoneSlab?.symbol);
     assert.notEqual(woodSlab?.color, stoneSlab?.color);
 });
+
+test('resolveFixedSymbol shares one real fired-clay identity across all real pottery sherds', () => {
+    assert.deepEqual(resolveFixedSymbol('angler pottery sherd'), { symbol: '◐', color: '#b5622c' });
+    assert.deepEqual(resolveFixedSymbol('skull pottery sherd'), { symbol: '◐', color: '#b5622c' });
+});
+
+test('resolveFixedSymbol shares one real parchment identity across all real banner pattern items', () => {
+    assert.deepEqual(resolveFixedSymbol('flower charge banner pattern'), { symbol: '▭', color: '#f2ecd8' });
+    assert.deepEqual(resolveFixedSymbol('thing banner pattern'), { symbol: '▭', color: '#f2ecd8' });
+    // A dyed banner itself is a different real item with its own colour-family identity (the star
+    // shape, COLOR_FAMILY_SHAPES) - a banner pattern item is the template, not the finished banner.
+    assert.notEqual(resolveFixedSymbol('flower charge banner pattern')?.symbol, resolveFixedSymbol('red banner')?.symbol);
+});
+
+test('resolveFixedSymbol has no fixed identity for a spawn egg - no real per-mob colour source exists', () => {
+    // Confirmed by resolveItemSymbol's own partial-identity handling below, not just an oversight.
+    assert.equal(resolveFixedSymbol('cow spawn egg'), undefined);
+});
+
+test('resolveItemSymbol gives every spawn egg the real, honest shared shape with a distinct hashed colour', () => {
+    const usedSoFar = new Map<string, ItemSymbol>();
+    const cow = resolveItemSymbol('cow spawn egg', usedSoFar);
+    usedSoFar.set('cow spawn egg', cow);
+    const pig = resolveItemSymbol('pig spawn egg', usedSoFar);
+
+    assert.equal(cow.symbol, '○');
+    assert.equal(pig.symbol, '○');
+    // Two eggs shown together get distinct colours via the usual collision-avoidance - true for
+    // any realistically small display. Restricting the pool to one shape does mean only 16 real
+    // colour slots exist across all 87 real eggs (SPAWN_EGG_SHAPE's own comment, itemSymbols.ts),
+    // so this guarantee doesn't extend to "all 87 shown at once" - not a scenario any consumer of
+    // this project has today.
+    assert.notEqual(cow.color, pig.color);
+    // Same name always resolves to the same result, same as any other hashed identity.
+    assert.deepEqual(resolveItemSymbol('cow spawn egg', new Map()), { symbol: '○', color: cow.color });
+});
