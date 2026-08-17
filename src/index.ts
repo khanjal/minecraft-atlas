@@ -15,6 +15,7 @@ export { buildBiomes } from './transform/java/biomes';
 export { buildStructures } from './transform/java/structures';
 export { buildBedrockRecipes } from './transform/bedrock/recipes';
 export { buildBedrockEntities } from './transform/bedrock/entities';
+export { buildEntityBehavior } from './transform/bedrock/entityBehavior';
 
 export { resolveItemSymbol, resolveFixedSymbol, resolveHashedSymbol, canonicalizeName } from './display/resolveItemSymbol';
 export { resolveEntitySymbol, resolveEntityFixedSymbol } from './display/resolveEntitySymbol';
@@ -31,6 +32,10 @@ export type { Ingredient } from './models/ingredient.model';
 export type { Block } from './models/block.model';
 export type { Biome } from './models/biome.model';
 export type { Structure } from './models/structure.model';
+export type { EntityBreeding } from './models/entity-breeding.model';
+export type { EntityGrowth } from './models/entity-growth.model';
+export type { EntityTaming } from './models/entity-taming.model';
+export type { EntityBehavior } from './transform/bedrock/entityBehavior';
 export type { CuratedRecord } from './models/curated-record.model';
 export type { Snapshot } from './models/snapshot.model';
 export type { Overlaid } from './merge/overlay';

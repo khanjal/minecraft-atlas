@@ -45,7 +45,7 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 ### Tests
 
-`npm test` runs 112 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
+`npm test` runs 119 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
 Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`/`structures`, both Java
 and Bedrock `recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the
 generic `match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
@@ -99,7 +99,8 @@ src/
   models/
     item.model.ts, entity.model.ts, effect.model.ts, enchantment.model.ts,
     recipe.model.ts, ingredient.model.ts, block.model.ts, biome.model.ts,
-    structure.model.ts, curated-record.model.ts, snapshot.model.ts
+    structure.model.ts, entity-breeding.model.ts, entity-growth.model.ts,
+    entity-taming.model.ts, curated-record.model.ts, snapshot.model.ts
                         one interface per file, matching Data Converter's models/minecraft/*.model.ts
                         naming convention - the ONE shared layer both editions produce the same
                         shape into, so a consumer works with one Recipe/Item/etc. type regardless
@@ -132,6 +133,10 @@ src/
       recipes.ts          parses every bedrock-samples recipe type - full coverage [done]
       entities.ts          parses every bedrock-samples entity file - id/category/family/
                            width/height only, no displayName (genuinely unavailable) [done]
+      entityBehavior.ts     parses minecraft:breedable/ageable/tameable into EntityBreeding/
+                           EntityGrowth/EntityTaming - real per-mob game behavior, not just
+                           catalog data; item ids kept as Bedrock's own raw strings, not mapped
+                           to a real item registry (no public source does that mapping) [done]
   display/
     itemSymbols.ts        hand-picked symbol+colour identity (~180 items/blocks, ported from Craft
                           Helper) plus real family tables: dye, copper-oxidation, potion-effect,
@@ -394,6 +399,69 @@ and gets back either a join (`overlay`) or a gap report (`coverageReport`). This
 "does the curated overlay ship from this repo" open question from earlier: the *mechanism* does,
 here, generically; the *data* (and whatever eventually reads the sheet into that shape) stays
 wherever Craft Helper's own pipeline lives.
+
+### Auditing Craft Helper's sheet for more genuinely-public data
+
+The same question that moved item/block symbol data out of Craft Helper
+([khanjal/Craft-Helper#3](https://github.com/khanjal/Craft-Helper/issues/3)) applies to the rest of
+its hand-maintained sheet: is any of it actually general game data that happens to live in the wrong
+place, rather than real curation (synonyms, plurals, cross-edition naming - the stuff no public
+source will ever have)? Checked directly against Data Converter's real spreadsheet reader models and
+Craft Helper's live handler code, not assumed:
+
+- **`ItemRepair` and `Enchantment.treasure`/`maxLevel`/`weight` look like exact duplicates of real
+  data this project already provides** (`Item.repairWith`, `Enchantment.treasureOnly`/`maxLevel`/
+  `weight`, both fetched from minecraft-data) - but grepping Craft Helper's actual handlers and
+  helpers turns up zero references to either. Neither feeds any live feature today, so this isn't a
+  real merge candidate - it's a "these sheet columns may be dead" question, separate from this
+  project entirely.
+- **Breeding and taming are a real, live feature** (`handlers/farm.ts` - "how do I breed/tame a
+  cow") and genuinely do overlap with real Bedrock behavior-pack data
+  (`minecraft:breedable`/`minecraft:ageable`/`minecraft:tameable`). Checked properly, not assumed:
+  compared all 20 real animals with sheet breeding data against Bedrock's real `breed_items`,
+  normalizing away pure naming-format differences (`sweet_berries` vs `sweet berry`,
+  `cooked_mutton` vs `cookedmutton`) first. Result: **12 of 20 matched exactly**, most of the rest
+  were Bedrock being a strict *superset* - real, current game content the sheet simply hadn't been
+  updated for (bees can feed on 11 more real flower types in current Minecraft than the sheet
+  lists; parrots/chickens accept 2 more real seed types; horses/donkeys also breed on enchanted
+  golden apples) - and only a couple were genuine differences (Bedrock's "fish" is a generic tag
+  where the sheet lists cod/salmon/pufferfish/clownfish individually). Taming showed the identical
+  pattern (cat's tag-vs-list quirk again; parrot missing 2 real seed types; wolf and nautilus's core
+  items matched exactly). Strong enough parity to build real extraction from - see below.
+
+### Bedrock entity behavior: breeding, growth, taming
+
+`transform/bedrock/entityBehavior.ts` parses three real Bedrock components - `minecraft:breedable`,
+`minecraft:ageable`, `minecraft:tameable` - into `EntityBreeding`/`EntityGrowth`/`EntityTaming`.
+Genuinely new ground for this project (real per-mob game *behavior*, not just catalog data), found
+by investigating the sheet-parity question above rather than planned from the start.
+
+Two real format quirks, found by parsing all 127 real entities rather than assumed from one
+example:
+
+- **A component can live in an entity's top-level `components` OR inside any of its
+  `component_groups`** (the states an entity's AI toggles between, e.g. "baby"/"adult") - verified:
+  cow's `breedable` is inside `minecraft:cow_adult`, horse's inside `minecraft:horse_tamed`,
+  parrot's `tameable` inside `minecraft:parrot_wild`. Both locations are checked.
+- **An item list shows up as a bare string (wolf: `tame_items: "bone"`), a plain array (cat,
+  parrot), or a mixed array where some entries are objects describing a side effect** (nautilus:
+  `{"item": "pufferfish_bucket", "result_item": "water_bucket:0"}`, alongside plain
+  `"pufferfish"`) - only the item id itself is kept; the bucket's empty-container side effect isn't
+  part of "what can tame this."
+
+**One deliberate, honest limitation, checked rather than assumed away**: `breedItems`/
+`growUpItems`/`tameItems` keep Bedrock's own raw item-id strings verbatim (`"muttonRaw"`,
+`"appleEnchanted"`, `"fish"`) rather than mapping them to a real item registry id - confirmed there
+*is* no real `"muttonRaw"` in minecraft-data's `items.json` (the real id is `cooked_mutton`), and no
+public source maps Bedrock's internal shorthand to either edition's actual item ids. Inventing that
+mapping would mean guessing, which this project doesn't do; a consumer that wants real Java item ids
+has to do that mapping itself, knowingly, not have it silently assumed for them.
+
+`npm run generate:entity-behavior -- v1.26.40.05` writes all three to
+`data/bedrock/v1.26.40.05/entity-{breeding,growth,taming}.json`. Verified live: 26 breeding, 35
+growth, 5 taming entries for that version, matching the parity investigation's own findings exactly
+(horse: `requireTame: true`, breeds with both `minecraft:horse` and `minecraft:donkey` - the real
+mule mechanic).
 
 ### Item/block/entity/biome/structure display symbols
 
