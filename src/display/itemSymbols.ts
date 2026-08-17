@@ -831,10 +831,14 @@ export const WOOD_FORM_SHAPES: Record<string, string> = {
     // fold already handles) - not folded into that flat identity since 'wood' was never covered by
     // the original recipe-grid-only system at all (falls to hash either way, no verified behaviour
     // to preserve), so it's safe to give it a real per-species colour here instead.
-    'wood': '■',
-    // Cut planks - same substance as planks, same shape.
-    'slab': '■',
-    'stairs': '■',
+    'wood': '▲',
+    // Deliberately NOT '■' (planks' own shape): a real collision was found and verified against
+    // Craft Helper's actual 26.2 recipes - 'barrel' and 'chiseled bookshelf' both use planks AND a
+    // wooden-slabs tag as two separate ingredients of the same species, which would render as two
+    // visually identical cells if slab shared planks' exact shape. A thin bar reads as "a cut
+    // slab" distinctly from a plank's full square.
+    'slab': '▬',
+    'stairs': '◐',
 };
 
 // Which of WOOD_FORM_SHAPES' forms are "the growing/living part" of the species (foliage or
