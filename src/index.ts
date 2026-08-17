@@ -17,6 +17,7 @@ export { buildBedrockEntities } from './transform/bedrock/entities';
 
 export { resolveItemSymbol, resolveFixedSymbol, resolveHashedSymbol, canonicalizeName } from './display/resolveItemSymbol';
 export { resolveEntitySymbol, resolveEntityFixedSymbol } from './display/resolveEntitySymbol';
+export { resolveBiomeSymbol } from './display/resolveBiomeSymbol';
 export { DISPLAY_SYMBOLS, PROVISIONAL_DISPLAY_SYMBOLS, SYMBOL_COLORS } from './display/itemSymbols';
 
 export type { Item } from './models/item.model';

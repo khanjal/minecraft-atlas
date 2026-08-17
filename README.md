@@ -118,16 +118,20 @@ src/
   display/
     itemSymbols.ts        hand-picked symbol+colour identity (~180 items/blocks, ported from Craft
                           Helper) plus real family tables: dye, copper-oxidation, potion-effect,
-                          ore-mineral, coral-type, wood-species/leaf, tool-material-tier, and the
-                          "Block of X" Mojang-rename aliases [done]
+                          ore-mineral, coral-type, wood-species/leaf, tool-material-tier,
+                          stone/mineral-material, and the "Block of X" Mojang-rename aliases [done]
     resolveItemSymbol.ts   resolveItemSymbol(name, usedSoFar) - reserved match, then each colour
                           family in turn, then a deterministic name-derived hash fallback that
                           avoids colliding with what's already assigned - see "Item/block/entity
-                          display symbols" below for the real ~60% coverage this achieves [done]
+                          display symbols" below for the real ~66% coverage this achieves [done]
     entitySymbols.ts       real category->colour tables for Java's minecraft-data `type` field and
                           Bedrock's `spawn_category`/`family` fields [done]
     resolveEntitySymbol.ts  resolveEntitySymbol(entity, usedSoFar) - same fixed-then-hash shape as
                           items, matched on structured category fields instead of a name [done]
+    biomeSymbols.ts        category->shape groupings only - a biome's colour is already 100% real
+                          and unique (Biome.color), nothing to hash [done]
+    resolveBiomeSymbol.ts   resolveBiomeSymbol(biome) - always returns the biome's own real colour,
+                          paired with a category shape; never falls back to a hash [done]
   merge/
     overlay.ts           joins a consumer's curated records onto base-layer records by name [done]
   diff/
