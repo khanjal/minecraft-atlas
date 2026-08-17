@@ -43,7 +43,7 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 ### Tests
 
-`npm test` runs 107 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
+`npm test` runs 108 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
 Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`/`structures`, both Java
 and Bedrock `recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the
 generic `match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
@@ -441,10 +441,15 @@ pattern the original port already used for dye/copper/potion families), applied 
   entities is too many to fabricate individual colours for. Java's real `type` field and Bedrock's
   real `spawn_category`/`family` fields each get a genuine, verified mapping (hostile -> red,
   animal/passive/creature -> green, water_creature -> blue, ambient -> pale, projectile -> the
-  arrow item's own reserved grey, player -> gold) - Java's "other"/"mob" and Bedrock's "misc" are
-  each left unmapped on purpose, since those are real, confirmed catch-all buckets in the source
-  data itself (boats, area_effect_cloud, ender_dragon, xp_orb, ...) with no coherent shared identity
-  to assign.
+  arrow item's own reserved grey, player -> gold). Two later, narrower additions once "other"/"misc"
+  were looked at more closely: Java's real "mob" type value is a genuine catch-all (10 entries) but,
+  unlike "other" (46 entries, genuinely heterogeneous), small and coherent enough to hand-curate
+  every one directly by id (`JAVA_ENTITY_MOB_COLORS`) the same way `STRUCTURE_COLORS` covers all 34
+  structures - several reuse an existing reserved item colour outright (copper golem -> copper
+  ingot's colour, iron golem -> iron ingot's, slime/magma cube -> slime ball's). Bedrock's real
+  `"inanimate"` family tag (boat/chest_boat/minecart all genuinely carry it) got its own neutral
+  colour too. Java's true "other" and Bedrock's "misc" stay unmapped - real, confirmed catch-all
+  buckets with no coherent shared identity, not a gap that was missed.
 - **The fallback pool itself got wider too**: `DISPLAY_SYMBOLS` grew from 8 to 14 by promoting six
   glyphs (▬▭▮▯◈◐) that were already rendering in production via `RESERVED_SYMBOLS` - zero new
   device-rendering risk, since real recipes already display them today. `SYMBOL_COLORS` doubled from
@@ -456,12 +461,17 @@ pattern the original port already used for dye/copper/potion families), applied 
 **Honest, measured results** (checked live against real 26.1 Java data and real v1.26.40.05 Bedrock
 data, not estimated): **66.4%** of the real 1,590 unique Java item+block names now resolve through a
 real, verified rule rather than the hash fallback (up from ~11% before this session, when only the
-original ~180-entry recipe-grid list existed). **64.3%** of Java's 157 real entities and **74.0%** of
-Bedrock's 127 real entities resolve through a real category rule. Every name still gets *something*
-either way - `resolveItemSymbol`/`resolveEntitySymbol` always return a deterministic, collision-
-avoiding identity via the hash fallback - so "does every item/block/entity have a symbol and
-colour" is unconditionally true; "is that identity a deliberately verified one or a computed one" is
-true for two-thirds of items/blocks and two-thirds to three-quarters of entities. What's left in the
+original ~180-entry recipe-grid list existed). **70.7%** of Java's 157 real entities and **81.1%** of
+Bedrock's 127 real entities resolve through a real category rule. Every biome and every structure
+resolves through a real rule unconditionally - see "Structures" above and "Blocks and biomes"
+below. Every name still gets *something* either way - `resolveItemSymbol`/`resolveEntitySymbol`
+always return a deterministic, collision-avoiding identity via the hash fallback - so "does every
+item/block/entity/biome/structure have a symbol and colour" is unconditionally true; "is that
+identity a deliberately verified one or a computed one" is true for two-thirds of items/blocks and
+roughly three-quarters of entities. Checked whether the shape pool itself needed expanding to cover
+these new categories (entities/biomes/structures all reuse it) - it didn't: every one of them fit
+comfortably within the existing 14 confirmed shapes via colour-differentiated reuse, the same design
+the item families already lean on; `PROVISIONAL_DISPLAY_SYMBOLS`' four new glyphs went unused. What's left in the
 hash fallback and wasn't tackled yet, in rough order of size: spawn eggs (93, real per-mob colours
 exist in the game but verifying and hand-entering ~90 without a fetchable source wasn't attempted),
 pottery sherds (23, each depicts a distinct picture with no shared colour), banner patterns (10,

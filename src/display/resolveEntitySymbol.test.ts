@@ -15,10 +15,22 @@ test('resolveEntityFixedSymbol matches Java entities by their real type field', 
     assert.deepEqual(resolveEntityFixedSymbol(entity({ type: 'player' })), { symbol: '★', color: '#ffd700' });
 });
 
-test('resolveEntityFixedSymbol returns undefined for Java\'s real catch-all type values', () => {
-    // "other" (boats, area_effect_cloud, ...) and "mob" (allay, ender_dragon, ghast, ...) are real
-    // heterogeneous buckets in minecraft-data itself - no single colour would mean anything.
+test('resolveEntityFixedSymbol matches Java\'s real "mob" catch-all by individual id, not by type', () => {
+    // All 10 real "mob"-type entities are individually hand-curated (small, coherent enough,
+    // unlike "other") - matched on id, real type value is irrelevant once the id itself is known.
+    assert.deepEqual(resolveEntityFixedSymbol(entity({ id: 'minecraft:ender_dragon', type: 'mob' })), { symbol: '★', color: '#4a2a5e' });
+    // Reuses copper ingot's own reserved item colour - genuinely the same substance.
+    assert.deepEqual(resolveEntityFixedSymbol(entity({ id: 'minecraft:copper_golem', type: 'mob' })), { symbol: '★', color: '#c87f4a' });
+    assert.deepEqual(resolveEntityFixedSymbol(entity({ id: 'minecraft:slime', type: 'mob' })), { symbol: '★', color: '#8bc34a' });
+});
+
+test('resolveEntityFixedSymbol returns undefined for Java\'s real "other" catch-all type', () => {
+    // 46 real, genuinely heterogeneous entries (boats, area_effect_cloud, minecarts, displays, ...)
+    // - no single colour would mean anything, unlike "mob" (see the dedicated test below), which
+    // is small and coherent enough to hand-curate individually.
     assert.equal(resolveEntityFixedSymbol(entity({ type: 'other' })), undefined);
+    // "mob" itself, on an id NOT in JAVA_ENTITY_MOB_COLORS, still correctly falls through - the
+    // type value alone was never a real signal, only the specific id is.
     assert.equal(resolveEntityFixedSymbol(entity({ type: 'mob' })), undefined);
     assert.equal(resolveEntityFixedSymbol(entity({})), undefined);
 });
@@ -34,7 +46,10 @@ test('resolveEntityFixedSymbol matches Bedrock entities by spawn_category', () =
 test('resolveEntityFixedSymbol falls back to Bedrock family tags when spawn_category is absent', () => {
     assert.deepEqual(resolveEntityFixedSymbol(entity({ family: ['cow', 'mob'] })), { symbol: '●', color: '#5e935e' });
     assert.deepEqual(resolveEntityFixedSymbol(entity({ family: ['warden', 'monster', 'mob'] })), { symbol: '▲', color: '#c0392b' });
-    assert.equal(resolveEntityFixedSymbol(entity({ family: ['inanimate'] })), undefined);
+    // "inanimate" is real too (boat/chest_boat/minecart all genuinely carry it with no
+    // spawn_category) - a neutral mechanical grey, distinct from any living-creature colour.
+    assert.deepEqual(resolveEntityFixedSymbol(entity({ family: ['boat', 'inanimate'] })), { symbol: '■', color: '#8a8a78' });
+    assert.equal(resolveEntityFixedSymbol(entity({ family: ['some_unrecognised_tag'] })), undefined);
 });
 
 test('resolveEntityFixedSymbol prefers spawn_category over family when both are present', () => {

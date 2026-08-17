@@ -6,13 +6,21 @@
 
 import { Entity } from '../models/entity.model';
 import { ItemSymbol } from '../models/item-symbol.model';
-import { JAVA_ENTITY_TYPE_COLORS, BEDROCK_ENTITY_CATEGORY_COLORS, BEDROCK_ENTITY_FAMILY_COLORS } from './entitySymbols';
+import {
+    JAVA_ENTITY_TYPE_COLORS, JAVA_ENTITY_MOB_COLORS, BEDROCK_ENTITY_CATEGORY_COLORS,
+    BEDROCK_ENTITY_FAMILY_COLORS,
+} from './entitySymbols';
 import { resolveHashedSymbol } from './resolveItemSymbol';
 
-// Java: matched on the real minecraft-data `type` field. Returns undefined for "other"/"mob" (real
-// catch-all values in the source data itself, see entitySymbols.ts) or an entity with no type at
-// all, so the caller's hash fallback picks up anything not meaningfully categorised.
+// Java: a real per-id match for the small "mob" catch-all (JAVA_ENTITY_MOB_COLORS) first, then the
+// real minecraft-data `type` field for everything else. Returns undefined for "other" (a genuine,
+// too-heterogeneous catch-all - see entitySymbols.ts) or an entity with no type at all, so the
+// caller's hash fallback picks up anything not meaningfully categorised.
 function resolveJavaEntityFixedSymbol(entity: Entity): ItemSymbol | undefined {
+    if (JAVA_ENTITY_MOB_COLORS[entity.id]) {
+        return JAVA_ENTITY_MOB_COLORS[entity.id];
+    }
+
     if (!entity.type) {
         return undefined;
     }
