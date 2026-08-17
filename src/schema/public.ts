@@ -16,10 +16,11 @@ import { buildEnchantments } from '../transform/java/enchantments';
 import { buildRecipes } from '../transform/java/recipes';
 import { buildBlocks } from '../transform/java/blocks';
 import { buildBiomes } from '../transform/java/biomes';
+import { buildStructures } from '../transform/java/structures';
 import { Snapshot } from '../models/snapshot.model';
 
 export async function buildSnapshot(minecraftVersion: string): Promise<Snapshot> {
-    const [items, entities, effects, enchantments, recipes, blocks, biomes] = await Promise.all([
+    const [items, entities, effects, enchantments, recipes, blocks, biomes, structures] = await Promise.all([
         buildItems(minecraftVersion),
         buildEntities(minecraftVersion),
         buildEffects(minecraftVersion),
@@ -27,6 +28,7 @@ export async function buildSnapshot(minecraftVersion: string): Promise<Snapshot>
         buildRecipes(minecraftVersion),
         buildBlocks(minecraftVersion),
         buildBiomes(minecraftVersion),
+        buildStructures(minecraftVersion),
     ]);
 
     return {
@@ -40,5 +42,6 @@ export async function buildSnapshot(minecraftVersion: string): Promise<Snapshot>
         recipes,
         blocks,
         biomes,
+        structures,
     };
 }

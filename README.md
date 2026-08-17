@@ -1,8 +1,8 @@
 # minecraft-atlas
 
 Merged, versioned Minecraft data — items, entities, recipes, effects, enchantments, blocks,
-biomes, for both Java and Bedrock Edition — assembled from official/community upstream sources
-instead of hand-vendored, plus a curated overlay for the parts no public source has.
+biomes, structures, for both Java and Bedrock Edition — assembled from official/community upstream
+sources instead of hand-vendored, plus a curated overlay for the parts no public source has.
 
 ## Status
 
@@ -21,8 +21,8 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 - `npm run generate -- 26.1` — the real Java entry point (`buildSnapshot`), one combined
   `data/java/26.1/snapshot.json`: 1,506 items, 157 entities, 40 effects, 43 enchantments, 1,168
-  blocks, 65 biomes, 1,514 of 1,515 recipes (every type except one deliberately deferred case —
-  see below).
+  blocks, 65 biomes, **34 of 34 real structures**, 1,514 of 1,515 recipes (every type except one
+  deliberately deferred case — see below).
 - `npm run generate:bedrock-recipes -- v1.26.40.05` — Bedrock recipes only (`buildBedrockRecipes`),
   `data/bedrock/v1.26.40.05/recipes.json`: **all 1,756 of 1,756** recipes that exist for that
   version - full coverage, better than Java's, since Bedrock's format turned out simpler once
@@ -43,10 +43,10 @@ const bedrockEntities = await buildBedrockEntities('v1.26.40.05'); // Bedrock: e
 
 ### Tests
 
-`npm test` runs 93 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
-Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`, both Java and Bedrock
-`recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the generic
-`match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
+`npm test` runs 107 tests (Node's built-in test runner, `src/**/*.test.ts`) in ~3s, fully offline.
+Every parser (`items`/`entities`/`effects`/`enchantments`/`blocks`/`biomes`/`structures`, both Java
+and Bedrock `recipes`, Bedrock `entities`, `tags`) has real fixture-based coverage now, not just the
+generic `match`/`overlay`/`coverageReport` utility layer - every fixture is real JSON fetched and verified
 against the live source during development, not fabricated. Tag resolution (`tags.ts`, and any Java
 recipe test that needs one) is tested by mocking `fetchTag` at the module boundary rather than the
 network, including a regression test for the shorthand-tag-reference bug found and fixed earlier
@@ -85,7 +85,7 @@ src/
   models/
     item.model.ts, entity.model.ts, effect.model.ts, enchantment.model.ts,
     recipe.model.ts, ingredient.model.ts, block.model.ts, biome.model.ts,
-    curated-record.model.ts, snapshot.model.ts
+    structure.model.ts, curated-record.model.ts, snapshot.model.ts
                         one interface per file, matching Data Converter's models/minecraft/*.model.ts
                         naming convention - the ONE shared layer both editions produce the same
                         shape into, so a consumer works with one Recipe/Item/etc. type regardless
@@ -109,8 +109,11 @@ src/
       blocks.ts             minecraft-data block -> Block, resolving drops/harvestTools'
                             numeric item ids into real item ids by joining against items.json [done]
       biomes.ts               minecraft-data biome -> Biome, incl. packed-int color -> hex [done]
+      structures.ts             mcmeta worldgen/structure -> Structure, resolving each real
+                                "biomes" tag to concrete biome ids via resolveBiomeTag [done]
       recipes.ts          parses every mcmeta recipe type except one deferred case [done]
-      tags.ts              resolves #minecraft:x tags to concrete item ids, recursively [done]
+      tags.ts              resolves #minecraft:x tags (items) and worldgen/biome tags
+                           (structures) to concrete ids, recursively [done]
     bedrock/
       recipes.ts          parses every bedrock-samples recipe type - full coverage [done]
       entities.ts          parses every bedrock-samples entity file - id/category/family/
@@ -132,6 +135,11 @@ src/
                           and unique (Biome.color), nothing to hash [done]
     resolveBiomeSymbol.ts   resolveBiomeSymbol(biome) - always returns the biome's own real colour,
                           paired with a category shape; never falls back to a hash [done]
+    structureSymbols.ts     hand-curated symbol+colour for every one of the 34 real structures -
+                          small enough to cover every single one directly, no family/hash needed [done]
+    resolveStructureSymbol.ts  resolveStructureFixedSymbol(structure) - 100% real coverage today;
+                          resolveStructureSymbol adds a hash fallback only for forward-compatibility
+                          with a structure a future Minecraft version might add [done]
   merge/
     overlay.ts           joins a consumer's curated records onto base-layer records by name [done]
   diff/
@@ -310,6 +318,49 @@ leaving them as bare numbers a consumer would have to resolve themselves.
 Biomes needed one small conversion: minecraft-data stores each biome's tint as a packed decimal
 RGB int (`7254527`), converted here to the hex string (`"#6eb1ff"`) anyone actually wants.
 
+### Structures
+
+A new data type, not just an extension of an existing one - real, previously-untouched public data
+from `misode/mcmeta`'s `data/minecraft/worldgen/structure/*.json`, the same real Java data pack
+format `recipes.ts` already reads, just a different folder. Genuinely distinct from Craft Helper's
+own hand-maintained "Thing" catalog (which has synonyms/plurals/parent-room/generates fields -
+curated naming data, the same kind that stays out of this repo everywhere else), even though the
+two overlap in subject matter: this is Mojang's own raw structure-generation data, not a curated
+list of what to call things.
+
+Verified against the real 26.1 data pack: **34 of 34 real structure definitions parse**, each with
+a genuine `type` (`minecraft:mineshaft`, `minecraft:jigsaw` for the template-pool-driven ones like
+villages, `minecraft:stronghold`, ...) and `step` (`surface_structures`/`underground_structures`/
+`underground_decoration`) field - no format quirks found, unlike most of the other real sources
+this project reads.
+
+The one real design decision: a structure's `biomes` field is itself a tag reference (e.g.
+`"#minecraft:has_structure/village_plains"`), in a *different* real Mojang tag registry than
+recipe ingredient tags (`tags/worldgen/biome/*.json`, not `tags/item/*.json`) but the exact same
+recursive shape (`{values: [...]}`, tags can reference other tags via a `#` prefix). Rather than
+leaving this unresolved the way Bedrock's recipe tags stay (no public definition source exists for
+those - see "Bedrock Edition" below), this one *does* have a real, fetchable definition, so
+`resolveBiomeTag` (`transform/java/tags.ts`) resolves it the same way `resolveTag` already resolves
+item tags - verified live: `mineshaft`'s tag expands to 49 concrete biome ids, matching its real
+in-game "almost anywhere underground" spawn behaviour.
+
+A real bug surfaced while building this and fixed before it shipped: an earlier version tried to
+share the recursive tag-resolution logic between `resolveTag` and `resolveBiomeTag` via a factory
+function parameterized on which fetch to call, passed as a captured argument. That broke the
+existing test suite's `t.mock.method` mocking outright (`fetchTag`'s real 404s started leaking
+through) - `t.mock.method` replaces the *module's* exported function at test time, but a value
+already captured as a factory argument at module-load time doesn't see that later replacement; only
+a direct call site inside the function body (`fetchTag(...)`, re-read fresh on every invocation)
+does. Reverted to two independent, textually similar functions rather than a shared abstraction -
+duplication that stays correctly testable beats a DRY refactor that silently breaks mocking.
+
+Symbol/colour coverage for structures is unconditionally 100% real, not a family system or a hash
+fallback: the whole catalog is only 34 structures, small enough to hand-curate every single one
+directly (`display/structureSymbols.ts`) the same way the original ~180-entry item list does, with
+real thematic colours (ocean monument reuses prismarine's own colour, desert pyramid reuses
+sandstone's, trial chambers reuses copper's, ruined portals reuse obsidian's, ...) rather than
+arbitrary ones.
+
 ### One data-quality fix along the way
 
 minecraft-data's `effects.json` stores its own `name` field as PascalCase ("MiningFatigue",
@@ -330,14 +381,22 @@ and gets back either a join (`overlay`) or a gap report (`coverageReport`). This
 here, generically; the *data* (and whatever eventually reads the sheet into that shape) stays
 wherever Craft Helper's own pipeline lives.
 
-### Item/block/entity display symbols
+### Item/block/entity/biome/structure display symbols
 
 `display/` holds real visual-identity data (a symbol+colour per name) - it started as a wholesale
 port of Craft Helper's `lambda/helpers/itemSymbols.ts` and `recipeGridHelpers.ts`
 ([khanjal/Craft-Helper#3](https://github.com/khanjal/Craft-Helper/issues/3)) scoped to what that one
-screen needed (~180 items that actually appear as recipe ingredients), then expanded to cover items,
-blocks, and entities generally - a different, harder problem, described honestly below rather than
-overclaimed.
+screen needed (~180 items that actually appear as recipe ingredients), then expanded to cover every
+data type this project produces - items, blocks, entities, biomes, structures - each a genuinely
+different shape of problem, described honestly below rather than overclaimed:
+
+- **Items/blocks**: real, verified family rules covering ~66% of the catalog (below), hash fallback
+  for the rest.
+- **Entities**: matched by real category field, not name (below).
+- **Biomes**: already 100% real - `Biome.color` is Mojang's own tint, unique per biome; only a
+  category shape needed adding.
+- **Structures**: only 34 real structures total, small enough to hand-curate every single one
+  directly - unconditionally 100% real coverage, see "Structures" above.
 
 **What "full catalog coverage" actually means at this scale.** The original ~180-entry
 `RESERVED_SYMBOLS` list works because every entry has something real to check it against: does this

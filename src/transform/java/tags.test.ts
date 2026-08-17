@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as mcmeta from '../../sources/java/mcmeta';
-import { resolveTag } from './tags';
+import { resolveTag, resolveBiomeTag } from './tags';
 
 // Mocks fetchTag at the module boundary (t.mock.method, auto-restored after each test) rather
 // than hitting the real network - fast, offline, and lets each test control exactly what a tag
@@ -61,4 +61,29 @@ test('resolveTag caches: two calls for the same tag only fetch once', async (t) 
     await resolveTag('test-cache', 'minecraft:sticks');
 
     assert.equal(fetchTagMock.mock.callCount(), 1);
+});
+
+test('resolveBiomeTag resolves a real structure biomes tag, mocking fetchBiomeTag not fetchTag', async (t) => {
+    // Real shape from data/minecraft/tags/worldgen/biome/has_structure/village_plains.json -
+    // mocked at its own function boundary to confirm resolveBiomeTag reads from fetchBiomeTag,
+    // not accidentally sharing resolveTag's item-tag fetch.
+    t.mock.method(mcmeta, 'fetchBiomeTag', async () => ({
+        values: ['minecraft:plains', 'minecraft:meadow'],
+    }));
+
+    const biomes = await resolveBiomeTag('test-biome-tag', 'minecraft:has_structure/village_plains');
+    assert.deepEqual(biomes, ['minecraft:plains', 'minecraft:meadow']);
+});
+
+test('resolveBiomeTag and resolveTag use independent caches for the same literal tag id', async (t) => {
+    const fetchTagMock = t.mock.method(mcmeta, 'fetchTag', async () => ({ values: ['minecraft:item_result'] }));
+    const fetchBiomeTagMock = t.mock.method(mcmeta, 'fetchBiomeTag', async () => ({ values: ['minecraft:biome_result'] }));
+
+    const items = await resolveTag('test-shared-id', 'minecraft:shared_name');
+    const biomes = await resolveBiomeTag('test-shared-id', 'minecraft:shared_name');
+
+    assert.deepEqual(items, ['minecraft:item_result']);
+    assert.deepEqual(biomes, ['minecraft:biome_result']);
+    assert.equal(fetchTagMock.mock.callCount(), 1);
+    assert.equal(fetchBiomeTagMock.mock.callCount(), 1);
 });
